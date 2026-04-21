@@ -25,6 +25,7 @@
     const text = (document.body?.innerText || '').toLowerCase();
     if (pageIsLoggedIn(text)) return false;
     return (
+      text.includes('Log in to Jira to see this work item') ||
       text.includes('something went wrong on our end') ||
       text.includes('something went wrong') ||
       text.includes('if this keeps happening')
