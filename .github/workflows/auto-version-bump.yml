@@ -1,0 +1,90 @@
+name: Auto Version Bump
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '**/*.js'
+
+jobs:
+  auto-version-bump:
+    runs-on: ubuntu-latest
+    # Skip commits that were already created by this workflow to prevent an infinite loop
+    if: "!contains(github.event.head_commit.message, 'chore: auto-bump version')"
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check and bump versions
+        id: bump
+        run: |
+          set -e
+          bumped=false
+
+          # If this is the first commit there is no parent to diff against
+          if ! git rev-parse HEAD~1 &>/dev/null; then
+            echo "First commit – skipping version bump check"
+            echo "bumped=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Get list of JS files changed in this push (grep handles all path depths)
+          changed_js_files=$(git diff --name-only HEAD~1 HEAD | grep '\.js$' || true)
+
+          while IFS= read -r file; do
+            [ -n "$file" ] || continue
+            [ -f "$file" ] || continue
+
+            # Skip files that have no Tampermonkey @version header
+            if ! grep -q '// @version' "$file"; then
+              continue
+            fi
+
+            # If the @version comment line itself was modified in this push,
+            # the developer already bumped it – nothing to do for this file
+            if git diff HEAD~1 HEAD -- "$file" | grep -q '^+.*// @version'; then
+              echo "$file: version already bumped, skipping"
+              continue
+            fi
+
+            # Extract the current version string (first @version line only)
+            current_version=$(grep -m 1 '// @version' "$file" \
+              | sed 's/.*@version[[:space:]]*//' \
+              | tr -d '[:space:]')
+
+            # Validate that the last component is numeric before incrementing
+            IFS='.' read -ra parts <<< "$current_version"
+            last_idx=$(( ${#parts[@]} - 1 ))
+            if ! [[ "${parts[$last_idx]}" =~ ^[0-9]+$ ]]; then
+              echo "$file: last version component '${parts[$last_idx]}' is non-numeric, skipping"
+              continue
+            fi
+
+            # Increment the last numeric component (handles 1.3 → 1.4 and 1.3.0 → 1.3.1)
+            parts[$last_idx]=$(( ${parts[$last_idx]} + 1 ))
+            new_version=$(IFS='.'; echo "${parts[*]}")
+
+            # Escape dots so they are treated as literals in the sed pattern
+            escaped_version=$(echo "$current_version" | sed 's/\./\\./g')
+            sed -i "s/\(@version[[:space:]]*\)$escaped_version/\1$new_version/" "$file"
+
+            echo "Bumped $file: $current_version -> $new_version"
+            bumped=true
+          done <<< "$changed_js_files"
+
+          echo "bumped=$bumped" >> "$GITHUB_OUTPUT"
+
+      - name: Commit and push version bumps
+        if: steps.bump.outputs.bumped == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "chore: auto-bump version"
+          git push
