@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.4
+// @version      1.5
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
 // @run-at       document-idle
+// @noframes
 // @grant        none
 // @updateURL    https://raw.githubusercontent.com/kaovilai/tampermonkey-scripts-pub/main/atlassian-auto-redirect-login.js
 // @downloadURL  https://raw.githubusercontent.com/kaovilai/tampermonkey-scripts-pub/main/atlassian-auto-redirect-login.js
@@ -17,8 +18,22 @@
   const LOGIN_BASE = 'https://id.atlassian.com/login';
   const APPLICATION = 'jira';
 
+  const ATLASSIAN_HOST_RE = /^https:\/\/[^/]+\.atlassian\.net(\/|$)/;
+
+  function isSafeAtlassianUrl(url) {
+    try {
+      return ATLASSIAN_HOST_RE.test(url);
+    } catch {
+      return false;
+    }
+  }
+
   function pageIsLoggedIn(text) {
-    return text.includes('assignee') || text.includes('reporter');
+    // Jira indicators
+    if (text.includes('assignee') || text.includes('reporter')) return true;
+    // Confluence indicators
+    if (text.includes('created by') || text.includes('last modified')) return true;
+    return false;
   }
 
   function pageLooksBroken() {
@@ -35,8 +50,8 @@
   function buildLoginUrl() {
     const currentUrl = window.location.href;
 
-    // Minimal dynamic version:
-    // send the user back to exactly the page they were on after login
+    if (!isSafeAtlassianUrl(currentUrl)) return null;
+
     const url = new URL(LOGIN_BASE);
     url.searchParams.set('continue', currentUrl);
     url.searchParams.set('application', APPLICATION);
@@ -53,7 +68,7 @@
 
     const target = buildLoginUrl();
 
-    if (window.location.href !== target) {
+    if (target && window.location.href !== target) {
       cleanup();
       window.location.replace(target);
     }
