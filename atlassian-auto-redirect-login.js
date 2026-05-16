@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.3
+// @version      1.4
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
 // @run-at       document-idle
@@ -44,22 +44,31 @@
     return url.toString();
   }
 
+  let debounceHandle = null;
+  let observer;
+  let timer;
+
   function redirectOnce() {
     if (!pageLooksBroken()) return;
 
     const target = buildLoginUrl();
 
     if (window.location.href !== target) {
+      cleanup();
       window.location.replace(target);
     }
   }
 
-  // Run now
-  redirectOnce();
+  function cleanup() {
+    if (observer) observer.disconnect();
+    clearTimeout(debounceHandle);
+    clearInterval(timer);
+  }
 
-  // Also watch for SPA-ish content changes
-  const observer = new MutationObserver(() => {
-    redirectOnce();
+  // Debounce MutationObserver to avoid excessive calls on rapid DOM updates
+  observer = new MutationObserver(() => {
+    clearTimeout(debounceHandle);
+    debounceHandle = setTimeout(redirectOnce, 150);
   });
 
   if (document.body) {
@@ -70,9 +79,12 @@
     });
   }
 
+  // Run now
+  redirectOnce();
+
   // Retry a few times in case Atlassian renders late
   let tries = 0;
-  const timer = setInterval(() => {
+  timer = setInterval(() => {
     tries += 1;
     redirectOnce();
     if (tries >= 10) clearInterval(timer);
