@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.9
+// @version      1.10
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
 // @run-at       document-idle
@@ -51,7 +51,10 @@
   ];
 
   function pageLooksBroken() {
-    if (pageIsLoggedIn()) return false;
+    if (pageIsLoggedIn()) {
+      cleanup();
+      return false;
+    }
     const text = (document.body?.textContent || '').toLowerCase();
     return BROKEN_PAGE_PHRASES.some(phrase => text.includes(phrase));
   }
@@ -117,6 +120,6 @@
   timer = setInterval(() => {
     tries += 1;
     redirectOnce();
-    if (tries >= 10) clearInterval(timer);
+    if (tries >= 10) cleanup();
   }, 1000);
 })();
