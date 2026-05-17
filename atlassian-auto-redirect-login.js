@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.15
+// @version      2.16
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -330,6 +330,7 @@
   const POLL_MAX_TRIES = 10;         // stop polling after this many ticks (~10 s)
   const NAV_DEBOUNCE_MS = 100;       // SPA navigation → retry loop delay
   const VISIBILITY_DEBOUNCE_MS = 200; // tab visibility restore → retry loop delay
+  const ONLINE_DEBOUNCE_MS = 300;    // connectivity restore → retry loop delay
 
   // Delays (ms) for follow-up checks after fetch/XHR detect a 401/403.
   // The SPA may need a few render cycles before the auth-error UI appears in
@@ -399,6 +400,7 @@
   let redirectFailures = 0;
   let navDebounce = null;
   let visibilityDebounce = null;
+  let onlineDebounce = null;
 
   // Stop only the polling interval and debounce — keeps the MutationObserver alive
   // so DOM changes that arrive after the poll window still trigger a redirect.
@@ -416,6 +418,8 @@
     navDebounce = null;
     clearTimeout(visibilityDebounce);
     visibilityDebounce = null;
+    clearTimeout(onlineDebounce);
+    onlineDebounce = null;
     clearTimeout(apiRetryHandle);
     apiRetryHandle = null;
   }
@@ -562,14 +566,20 @@
 
   // Re-run when connectivity is restored — a broken-looking page that was
   // skipped due to being offline should be re-evaluated once the network is back.
+  // Debounced to avoid rapid restarts when connectivity toggles quickly.
   window.addEventListener('online', () => {
     try {
       if (!redirected && !isLoggedIn() && !isAlreadyRedirecting()) {
-        if (observer === null) {
-          startRetryLoop(false);
-        } else {
-          redirectOnce();
-        }
+        clearTimeout(onlineDebounce);
+        onlineDebounce = setTimeout(() => {
+          if (!redirected && !isLoggedIn() && !isAlreadyRedirecting()) {
+            if (observer === null) {
+              startRetryLoop(false);
+            } else {
+              redirectOnce();
+            }
+          }
+        }, ONLINE_DEBOUNCE_MS);
       }
     } catch (e) {
       console.warn(`${LOG_PREFIX} online event error:`, e);
