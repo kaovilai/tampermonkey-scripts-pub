@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.74
+// @version      1.75
 // @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -31,6 +31,7 @@
 // @updateURL    https://raw.githubusercontent.com/kaovilai/tampermonkey-scripts-pub/main/atlassian-auto-redirect-login.js
 // @downloadURL  https://raw.githubusercontent.com/kaovilai/tampermonkey-scripts-pub/main/atlassian-auto-redirect-login.js
 // @supportURL   https://github.com/kaovilai/tampermonkey-scripts-pub
+// @license      MIT
 // @homepageURL  https://github.com/kaovilai/tampermonkey-scripts-pub
 // @icon         https://wac-cdn.atlassian.com/assets/img/favicons/atlassian/favicon-32x32.png
 // ==/UserScript==
@@ -223,11 +224,15 @@
 
     // Prefer scanning the main content area — Atlassian's nav HTML can push
     // error messages beyond MAX_TEXT_SCAN when scanning the full body.
-    const mainTarget =
-      document.querySelector('main, [role="main"], #main-content, #content') ??
-      document.body ??
-      document.documentElement;
-    return AUTH_RE.test(collectText(mainTarget, MAX_TEXT_SCAN));
+    try {
+      const mainTarget =
+        document.querySelector('main, [role="main"], #main-content, #content') ??
+        document.body ??
+        document.documentElement;
+      return AUTH_RE.test(collectText(mainTarget, MAX_TEXT_SCAN));
+    } catch (_) {
+      return false;
+    }
   }
 
   function buildLoginUrl() {
