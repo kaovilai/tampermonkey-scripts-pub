@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.91
+// @version      1.92
 // @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -163,12 +163,14 @@
     'sign in to your account',
     'continue to log in',
     'your account has been signed out',
+    'your account has been logged out',
     'please log in again',
     'log back in',
     'your session is no longer valid',
     'this page requires you to log in',
     'verify your identity',
     'reauthenticate to continue',
+    're-authenticate',
     'token expired',
     'your token has expired',
     'invalid session',
