@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.31
+// @version      1.32
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
 // @run-at       document-idle
@@ -101,12 +101,18 @@
   let navDebounce = null;
   let visibilityDebounce = null;
 
-  function cleanup() {
-    if (observer) { observer.disconnect(); observer = null; }
-    clearTimeout(debounceHandle);
-    debounceHandle = null;
+  // Stop only the polling interval and debounce — keeps the MutationObserver alive
+  // so DOM changes that arrive after the poll window still trigger a redirect.
+  function stopPolling() {
     clearInterval(intervalHandle);
     intervalHandle = null;
+    clearTimeout(debounceHandle);
+    debounceHandle = null;
+  }
+
+  function cleanup() {
+    stopPolling();
+    if (observer) { observer.disconnect(); observer = null; }
     clearTimeout(navDebounce);
     navDebounce = null;
     clearTimeout(visibilityDebounce);
@@ -162,7 +168,7 @@
     intervalHandle = setInterval(() => {
       tries += 1;
       redirectOnce();
-      if (tries >= 10) cleanup();
+      if (tries >= 10) stopPolling();
     }, 1000);
   }
 
