@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.84
+// @version      1.85
 // @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -40,6 +40,7 @@
   'use strict';
 
   const LOGIN_BASE = 'https://id.atlassian.com/login';
+  const AUTH_STATUS_CODES = new Set([401, 403]);
 
   function escapeRegExp(s) {
     return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -243,7 +244,7 @@
   function pageLooksBroken() {
     // Fast path: HTTP status from Navigation Timing API (no DOM access needed).
     const httpStatus = getNavigationHttpStatus();
-    if (httpStatus === 401 || httpStatus === 403) return true;
+    if (AUTH_STATUS_CODES.has(httpStatus)) return true;
 
     if (BROKEN_TITLE_RE.test(document.title)) return true;
 
@@ -483,7 +484,7 @@
       const _patchedFetch = async function (...args) {
         const response = await _originalFetch.apply(this, args);
         try {
-          if ((response.status === 401 || response.status === 403)
+          if (AUTH_STATUS_CODES.has(response.status)
             && isAtlassianApiUrl(response.url)
             && !isLoggedIn()
             && !redirected) {
@@ -508,7 +509,7 @@
         this.addEventListener('readystatechange', function () {
           try {
             if (this.readyState === 4
-              && (this.status === 401 || this.status === 403)
+              && AUTH_STATUS_CODES.has(this.status)
               && isAtlassianApiUrl(this.responseURL)
               && !isLoggedIn()
               && !redirected) {
