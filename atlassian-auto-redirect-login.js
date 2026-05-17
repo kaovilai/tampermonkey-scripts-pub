@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.10
+// @version      2.11
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -214,11 +214,14 @@
   // node but do descend", while FILTER_REJECT means "skip this subtree entirely".
   // SVG and MATH are excluded to avoid traversing large inline vector/formula
   // subtrees that can never contain auth error text.
-  const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE', 'SVG', 'MATH']);
+  // Uses localName (always lowercase) instead of tagName so that SVG/MathML
+  // elements — whose tagName is lowercase in HTML documents — are correctly
+  // matched. HTML elements (SCRIPT, STYLE, etc.) also have a lowercase localName.
+  const SKIP_TAGS = new Set(['script', 'style', 'noscript', 'template', 'svg', 'math']);
   const textNodeFilter = {
     acceptNode(node) {
       if (node.nodeType !== Node.TEXT_NODE) {
-        return SKIP_TAGS.has(node.tagName) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_SKIP;
+        return SKIP_TAGS.has(node.localName) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_SKIP;
       }
       return NodeFilter.FILTER_ACCEPT;
     },
