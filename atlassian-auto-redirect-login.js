@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.75
+// @version      1.76
 // @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -187,9 +187,15 @@
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT, textNodeFilter);
     let text = '';
     let node;
-    while ((node = walker.nextNode()) !== null) {
-      text += node.nodeValue;
-      if (text.length >= limit) return text.slice(0, limit);
+    try {
+      while ((node = walker.nextNode()) !== null) {
+        text += node.nodeValue;
+        if (text.length >= limit) return text.slice(0, limit);
+      }
+    } catch (_) {
+      // TreeWalker throws InvalidStateError if the DOM tree is mutated during
+      // traversal (e.g. React reconciliation removes a node mid-walk).
+      // Return whatever text was collected up to this point.
     }
     return text;
   }
