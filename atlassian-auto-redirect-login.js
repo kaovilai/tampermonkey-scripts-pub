@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.69
+// @version      1.70
 // @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -18,6 +18,13 @@
 // @exclude      https://auth.atlassian.com/*
 // @exclude      https://accounts.atlassian.com/*
 // @exclude      https://blog.atlassian.com/*
+// @exclude      https://design.atlassian.com/*
+// @exclude      https://hello.atlassian.com/*
+// @exclude      https://university.atlassian.com/*
+// @exclude      https://learning.atlassian.com/*
+// @exclude      https://events.atlassian.com/*
+// @exclude      https://partners.atlassian.com/*
+// @exclude      https://wac-cdn.atlassian.com/*
 // @run-at       document-idle
 // @noframes
 // @grant        none
@@ -49,14 +56,38 @@
     }
   }
 
+  // Public/non-product Atlassian subdomains that should never trigger a login
+  // redirect — mirrors the @exclude list in the metadata block.
+  const SAFE_URL_BLOCKLIST = new Set([
+    'id.atlassian.com',
+    'community.atlassian.com',
+    'developer.atlassian.com',
+    'support.atlassian.com',
+    'marketplace.atlassian.com',
+    'www.atlassian.com',
+    'status.atlassian.com',
+    'trust.atlassian.com',
+    'api.atlassian.com',
+    'auth.atlassian.com',
+    'accounts.atlassian.com',
+    'blog.atlassian.com',
+    'design.atlassian.com',
+    'hello.atlassian.com',
+    'university.atlassian.com',
+    'learning.atlassian.com',
+    'events.atlassian.com',
+    'partners.atlassian.com',
+    'wac-cdn.atlassian.com',
+  ]);
+
   function isSafeAtlassianUrl(url) {
     try {
       const { protocol, hostname } = new URL(url);
       if (protocol !== 'https:') return false;
-      // Allow *.atlassian.net and *.atlassian.com, but exclude id.atlassian.com
-      // (the login page itself) to prevent redirect loops.
+      if (SAFE_URL_BLOCKLIST.has(hostname)) return false;
+      // Allow *.atlassian.net and *.atlassian.com (product tenants).
       if (hostname.endsWith('.atlassian.net')) return true;
-      if (hostname.endsWith('.atlassian.com') && hostname !== 'id.atlassian.com') return true;
+      if (hostname.endsWith('.atlassian.com')) return true;
       return false;
     } catch {
       return false;
