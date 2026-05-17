@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.70
+// @version      1.71
 // @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -58,7 +58,7 @@
 
   // Public/non-product Atlassian subdomains that should never trigger a login
   // redirect — mirrors the @exclude list in the metadata block.
-  const SAFE_URL_BLOCKLIST = new Set([
+  const EXCLUDED_HOSTNAMES = new Set([
     'id.atlassian.com',
     'community.atlassian.com',
     'developer.atlassian.com',
@@ -84,7 +84,7 @@
     try {
       const { protocol, hostname } = new URL(url);
       if (protocol !== 'https:') return false;
-      if (SAFE_URL_BLOCKLIST.has(hostname)) return false;
+      if (EXCLUDED_HOSTNAMES.has(hostname)) return false;
       // Allow *.atlassian.net and *.atlassian.com (product tenants).
       if (hostname.endsWith('.atlassian.net')) return true;
       if (hostname.endsWith('.atlassian.com')) return true;
@@ -241,8 +241,8 @@
   const MAX_REDIRECT_FAILURES = 3;  // give up after this many consecutive replace() failures
 
   let debounceHandle = null;
-  let observer;
-  let intervalHandle;
+  let observer = null;
+  let intervalHandle = null;
   let redirected = false;
   let redirectFailures = 0;
   let navDebounce = null;
@@ -365,7 +365,7 @@
   // Debounce to avoid rapid restarts when the user switches tabs quickly.
   document.addEventListener('visibilitychange', () => {
     try {
-      if (!document.hidden && !redirected && !intervalHandle && !isLoggedIn() && !isAlreadyRedirecting()) {
+      if (!document.hidden && !redirected && intervalHandle === null && !isLoggedIn() && !isAlreadyRedirecting()) {
         clearTimeout(visibilityDebounce);
         visibilityDebounce = setTimeout(() => startRetryLoop(true), VISIBILITY_DEBOUNCE_MS);
       }
