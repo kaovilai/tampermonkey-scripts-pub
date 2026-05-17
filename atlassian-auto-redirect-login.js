@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.73
+// @version      1.74
 // @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -209,9 +209,16 @@
     // Always scan overlay banners (alert/dialog) independently — an auth error
     // may appear in a modal that lives outside <main>, so checking only the
     // first matched element would silently miss it.
+    // Cap at MAX_OVERLAY_SCAN to avoid slow iteration on notification-heavy pages
+    // (e.g. Jira boards with many toast alerts). Auth errors appear in the first
+    // few overlays so scanning a bounded subset is sufficient.
+    const MAX_OVERLAY_SCAN = 10;
     const overlays = document.querySelectorAll('[role="alert"], [role="dialog"]');
-    for (const el of overlays) {
-      if (AUTH_RE.test(collectText(el, MAX_TEXT_SCAN))) return true;
+    const overlayCount = Math.min(overlays.length, MAX_OVERLAY_SCAN);
+    for (let i = 0; i < overlayCount; i++) {
+      try {
+        if (AUTH_RE.test(collectText(overlays[i], MAX_TEXT_SCAN))) return true;
+      } catch (_) { /* skip malformed overlay element */ }
     }
 
     // Prefer scanning the main content area — Atlassian's nav HTML can push
