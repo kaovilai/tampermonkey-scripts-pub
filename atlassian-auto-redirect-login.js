@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.65
+// @version      1.66
 // @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -28,6 +28,10 @@
   'use strict';
 
   const LOGIN_BASE = 'https://id.atlassian.com/login';
+
+  function escapeRegExp(s) {
+    return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
   const CONFLUENCE_PATH_RE = /^\/wiki(\/|$)/;
 
   function detectApplication(url) {
@@ -105,7 +109,7 @@
     'your account has been signed out',
     'please log in again',
     'log back in',
-  ].join('|'), 'i');
+  ].map(escapeRegExp).join('|'), 'i');
 
   // "error" is intentionally excluded — it is too generic and would cause false-positive
   // redirects on non-auth error pages (e.g. 500 pages) if the logged-in DOM selectors
@@ -301,11 +305,9 @@
   // those that don't trigger popstate (e.g. same-document navigations).
   // Complements the history.pushState/replaceState patch below.
   try {
-    if (typeof window.navigation !== 'undefined') {
-      window.navigation.addEventListener('navigate', (e) => {
-        if (e.navigationType !== 'reload' && e.destination?.url !== window.location.href) onNavigation();
-      });
-    }
+    window.navigation?.addEventListener('navigate', (e) => {
+      if (e.navigationType !== 'reload' && e.destination?.url !== window.location.href) onNavigation();
+    });
   } catch (_) { /* Navigation API unavailable or restricted */ }
 
   // Re-run when the user returns to an idle tab whose session may have expired
