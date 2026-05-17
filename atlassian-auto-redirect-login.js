@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.92
+// @version      1.93
 // @author       kaovilai
-// @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
+// @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
 // @match        https://*.atlassian.com/*
 // @exclude      https://id.atlassian.com/*
@@ -175,6 +175,12 @@
     'your token has expired',
     'invalid session',
     'your session is invalid',
+    'session no longer active',
+    'your session is no longer active',
+    'please log in to continue',
+    'you need to be logged in',
+    'not logged in',
+    'login to continue',
   ].map(escapeRegExp).join('|'), 'i');
 
   // Use Navigation Timing API to detect HTTP 401/403 responses directly.
