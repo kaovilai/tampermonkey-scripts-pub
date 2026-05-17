@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.14
+// @version      1.15
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
 // @run-at       document-idle
@@ -44,7 +44,7 @@
     return false;
   }
 
-  const BROKEN_PAGE_PHRASES = [
+  const BROKEN_PAGE_PHRASES = Object.freeze([
     // Jira auth prompts
     'log in to jira to see this work item',
     'you need to log in to jira',
@@ -63,7 +63,7 @@
     '401 unauthorized',
     'access denied',
     'not authorized',
-  ];
+  ]);
 
   const BROKEN_TITLE_RE = /\b(403|401|forbidden|unauthorized|access denied|error|sign in|log in)\b/i;
 
@@ -93,6 +93,7 @@
   let debounceHandle = null;
   let observer;
   let timer;
+  let redirected = false;
 
   function cleanup() {
     if (observer) { observer.disconnect(); observer = null; }
@@ -103,6 +104,7 @@
   }
 
   function redirectOnce() {
+    if (redirected) return;
     if (isLoggedIn()) {
       cleanup();
       return;
@@ -112,6 +114,7 @@
     const target = buildLoginUrl();
 
     if (target && window.location.href !== target) {
+      redirected = true;
       cleanup();
       window.location.replace(target);
     }
