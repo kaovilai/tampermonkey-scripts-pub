@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.67
+// @version      1.68
 // @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -14,6 +14,10 @@
 // @exclude      https://www.atlassian.com/*
 // @exclude      https://status.atlassian.com/*
 // @exclude      https://trust.atlassian.com/*
+// @exclude      https://api.atlassian.com/*
+// @exclude      https://auth.atlassian.com/*
+// @exclude      https://accounts.atlassian.com/*
+// @exclude      https://blog.atlassian.com/*
 // @run-at       document-idle
 // @noframes
 // @grant        none
@@ -109,6 +113,10 @@
     'your account has been signed out',
     'please log in again',
     'log back in',
+    'your session is no longer valid',
+    'this page requires you to log in',
+    'verify your identity',
+    'reauthenticate to continue',
   ].map(escapeRegExp).join('|'), 'i');
 
   // "error" is intentionally excluded — it is too generic and would cause false-positive
