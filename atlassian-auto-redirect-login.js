@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.49
+// @version      1.50
 // @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -233,11 +233,14 @@
   // Only restart when the URL actually changes to avoid redundant loops
   // caused by state-only updates (e.g. replaceState with the same URL).
   // Guard against double-patching if the script is somehow injected twice.
+  // A string key is used intentionally — Symbol() creates a new unique symbol on
+  // each IIFE invocation, so a symbol-based guard would fail to detect a patch
+  // applied by a prior injection of this same script.
   // Wrapped in try/catch — some hardened browsers disallow overriding history methods.
-  const PATCHED = Symbol('atlassianRedirectPatched');
+  const PATCH_KEY = '__atlassianRedirectPatched';
   try {
     ['pushState', 'replaceState'].forEach(method => {
-      if (history[method][PATCHED]) return;
+      if (history[method][PATCH_KEY]) return;
       const original = history[method];
       history[method] = function (...args) {
         const prevUrl = window.location.href;
@@ -245,7 +248,7 @@
         if (window.location.href !== prevUrl) onNavigation();
         return result;
       };
-      history[method][PATCHED] = true;
+      history[method][PATCH_KEY] = true;
     });
   } catch (e) {
     // history patching unavailable; popstate/hashchange listeners provide fallback coverage
