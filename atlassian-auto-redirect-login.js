@@ -1,7 +1,8 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.36
+// @version      1.37
+// @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
 // @run-at       document-idle
@@ -26,10 +27,13 @@
     }
   }
 
-  const ATLASSIAN_HOST_RE = /^https:\/\/[^/]+\.atlassian\.net(\/|$)/;
-
   function isSafeAtlassianUrl(url) {
-    return ATLASSIAN_HOST_RE.test(url);
+    try {
+      const { protocol, hostname } = new URL(url);
+      return protocol === 'https:' && hostname.endsWith('.atlassian.net');
+    } catch {
+      return false;
+    }
   }
 
   const LOGGED_IN_SELECTOR = [
