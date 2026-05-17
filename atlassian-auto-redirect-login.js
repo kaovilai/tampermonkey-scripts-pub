@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.47
+// @version      1.48
 // @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -193,7 +193,7 @@
     observer.observe(observeTarget, {
       childList: true,
       subtree: true,
-      characterData: false,
+      characterData: true,
     });
 
     redirectOnce();
