@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.99
+// @version      2.0
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -265,7 +265,7 @@
     const httpStatus = getNavigationHttpStatus();
     if (AUTH_STATUS_CODES.has(httpStatus)) return true;
 
-    if (BROKEN_TITLE_RE.test(document.title)) return true;
+    if (BROKEN_TITLE_RE.test(normalizeText(document.title))) return true;
 
     // Always scan overlay banners (alert/dialog) independently — an auth error
     // may appear in a modal that lives outside <main>, so checking only the
