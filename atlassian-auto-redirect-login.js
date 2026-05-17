@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.81
+// @version      1.82
 // @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -90,6 +90,21 @@
       if (hostname.endsWith('.atlassian.net')) return true;
       if (hostname.endsWith('.atlassian.com')) return true;
       return false;
+    } catch {
+      return false;
+    }
+  }
+
+  function isAtlassianApiUrl(url) {
+    try {
+      const { protocol, hostname, pathname } = new URL(url, window.location.href);
+      if (protocol !== 'https:') return false;
+      if (!hostname.endsWith('.atlassian.net') && !hostname.endsWith('.atlassian.com')) return false;
+      return pathname.startsWith('/rest/')
+        || pathname.startsWith('/wiki/rest/')
+        || pathname.startsWith('/graphql')
+        || pathname.startsWith('/wiki/graphql')
+        || pathname.startsWith('/gateway/api/');
     } catch {
       return false;
     }
@@ -459,15 +474,18 @@
     // history patching unavailable; popstate/hashchange listeners provide fallback coverage
   }
 
-  // Intercept fetch() to detect 401/403 API responses in SPA contexts where
-  // auth errors surface as JSON API failures before (or without) any DOM change.
+  // Intercept fetch() to detect 401/403 from Atlassian API endpoints in SPA
+  // contexts where auth failures surface before (or without) DOM text changes.
   // Guards against double-patching when the script is injected more than once.
   try {
     if (typeof window.fetch === 'function' && !window.fetch[PATCH_KEY]) {
       const _originalFetch = window.fetch;
       const _patchedFetch = function (...args) {
         return _originalFetch.apply(this, args).then(response => {
-          if ((response.status === 401 || response.status === 403) && !redirected) {
+          if ((response.status === 401 || response.status === 403)
+            && isAtlassianApiUrl(response.url)
+            && !isLoggedIn()
+            && !redirected) {
             setTimeout(redirectOnce, 0);
           }
           return response;
@@ -478,13 +496,18 @@
     }
   } catch (_) { /* fetch patching unavailable */ }
 
-  // Intercept XMLHttpRequest to detect 401/403 responses in older SPA code paths.
+  // Intercept XMLHttpRequest to detect 401/403 from Atlassian API endpoints in
+  // older SPA code paths.
   try {
     if (!XMLHttpRequest.prototype.open[PATCH_KEY]) {
       const _originalXHROpen = XMLHttpRequest.prototype.open;
       const _patchedXHROpen = function (...args) {
         this.addEventListener('readystatechange', function () {
-          if (this.readyState === 4 && (this.status === 401 || this.status === 403) && !redirected) {
+          if (this.readyState === 4
+            && (this.status === 401 || this.status === 403)
+            && isAtlassianApiUrl(this.responseURL)
+            && !isLoggedIn()
+            && !redirected) {
             setTimeout(redirectOnce, 0);
           }
         });
