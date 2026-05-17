@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.87
+// @version      1.88
 // @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -25,7 +25,7 @@
 // @exclude      https://events.atlassian.com/*
 // @exclude      https://partners.atlassian.com/*
 // @exclude      https://wac-cdn.atlassian.com/*
-// @run-at       document-idle
+// @run-at       document-start
 // @noframes
 // @grant        none
 // @updateURL    https://raw.githubusercontent.com/kaovilai/tampermonkey-scripts-pub/main/atlassian-auto-redirect-login.js
@@ -531,5 +531,12 @@
     }
   } catch (_) { /* XHR patching unavailable */ }
 
-  startRetryLoop(true);
+  // Defer the DOM-dependent retry loop until the document is interactive.
+  // fetch/XHR patches above are already installed at document-start so early
+  // API auth failures (before DOMContentLoaded) are captured immediately.
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => startRetryLoop(true), { once: true });
+  } else {
+    startRetryLoop(true);
+  }
 })();
