@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.58
+// @version      1.59
 // @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -111,6 +111,7 @@
   };
 
   function collectText(root, limit) {
+    if (!root) return '';
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, textNodeFilter);
     let text = '';
     let node;
@@ -147,6 +148,7 @@
     const mainTarget =
       document.querySelector('main, [role="main"], #main-content, #content') ??
       document.body;
+    if (!mainTarget) return false;
     return AUTH_RE.test(collectText(mainTarget, MAX_TEXT_SCAN));
   }
 
