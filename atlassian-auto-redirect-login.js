@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.56
+// @version      1.57
 // @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -79,7 +79,6 @@
     'single sign-on required',
     'identity provider',
     'idp redirect required',
-    'redirecting to login',
   ].join('|'), 'i');
 
   const BROKEN_TITLE_RE = /\b(403|401|forbidden|unauthorized|access denied|error|sign in|log in)\b/i;
@@ -111,6 +110,16 @@
       if (text.length >= limit) return text.slice(0, limit);
     }
     return text;
+  }
+
+  // If the page already contains a <meta http-equiv="refresh"> pointing to a
+  // login URL, Atlassian's native redirect is in progress — don't interfere.
+  function isAlreadyRedirecting() {
+    const meta = document.querySelector('meta[http-equiv="refresh" i]');
+    if (!meta) return false;
+    const content = meta.getAttribute('content') ?? '';
+    // content format: "N; url=https://..." — check for login-related destination
+    return /url=.*(?:login|signin|sso|saml|idp)/i.test(content);
   }
 
   function pageLooksBroken() {
@@ -186,6 +195,7 @@
         cleanup();
         return;
       }
+      if (isAlreadyRedirecting()) { cleanup(); return; }
       if (!pageLooksBroken()) return;
 
       const target = buildLoginUrl();
