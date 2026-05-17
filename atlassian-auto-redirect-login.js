@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.20
+// @version      1.21
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
 // @run-at       document-idle
@@ -63,15 +63,6 @@
     'not authorized',
   ]);
 
-  // Ambiguous error signals — these also appear on service-outage pages (503s)
-  // where the user IS unauthenticated but logging in would not help.
-  // Only treat them as a broken-auth page when the title independently confirms
-  // an auth/access problem.
-  const GENERIC_ERROR_PHRASES = Object.freeze([
-    'something went wrong',
-    'if this keeps happening',
-  ]);
-
   const BROKEN_TITLE_RE = /\b(403|401|forbidden|unauthorized|access denied|error|sign in|log in)\b/i;
 
   // Limit scan to first 5 000 chars — error banners appear near the top and
@@ -84,8 +75,6 @@
     const text = (document.body?.textContent || '').slice(0, MAX_TEXT_SCAN).toLowerCase();
     if (titleBroken) return true;
     if (AUTH_PHRASES.some(phrase => text.includes(phrase))) return true;
-    // GENERIC_ERROR_PHRASES alone (e.g. service-outage pages) do not justify a
-    // redirect; they require title corroboration, which is already handled above.
     return false;
   }
 
