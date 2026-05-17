@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.3
+// @version      2.4
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -222,7 +222,8 @@
     return s
       .replace(/[\u2018\u2019\u201B\u02BC]/g, "'")   // curly/modifier single quotes → '
       .replace(/[\u201C\u201D\u201F]/g, '"')           // curly double quotes → "
-      .replace(/[\u2013\u2014]/g, '-');                // en/em dash → hyphen
+      .replace(/[\u2013\u2014]/g, '-')                 // en/em dash → hyphen
+      .replace(/[\u00A0\u202F\u2009\u200B]/g, ' ');   // non-breaking/narrow/zero-width spaces → space
   }
 
   function collectText(root, limit) {
