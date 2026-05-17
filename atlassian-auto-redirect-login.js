@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.63
+// @version      1.64
 // @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -256,6 +256,7 @@
   function startRetryLoop() {
     cleanup();
     redirected = false;
+    redirectFailures = 0;
 
     const observeTarget = document.body ?? document.documentElement;
     observer = new MutationObserver(() => {
@@ -288,7 +289,6 @@
   // Re-run on SPA navigation. hashchange and popstate can both fire for the
   // same navigation; debounce them together to avoid a redundant second loop.
   function onNavigation() {
-    redirectFailures = 0;
     clearTimeout(navDebounce);
     navDebounce = setTimeout(startRetryLoop, NAV_DEBOUNCE_MS);
   }
