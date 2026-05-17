@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.43
+// @version      1.44
 // @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -110,10 +110,13 @@
   const NAV_DEBOUNCE_MS = 100;       // SPA navigation → retry loop delay
   const VISIBILITY_DEBOUNCE_MS = 200; // tab visibility restore → retry loop delay
 
+  const MAX_REDIRECT_FAILURES = 3;  // give up after this many consecutive replace() failures
+
   let debounceHandle = null;
   let observer;
   let intervalHandle;
   let redirected = false;
+  let redirectFailures = 0;
   let navDebounce = null;
   let visibilityDebounce = null;
 
@@ -152,12 +155,18 @@
         cleanup();
         try {
           window.location.replace(target);
+          redirectFailures = 0;
         } catch (e) {
           // Replace failed (e.g. blocked by browser policy); restore state and
           // reschedule monitoring — cleanup() already ran, so without this the
           // script would be silently dead with no active observer or interval.
           redirected = false;
-          setTimeout(startRetryLoop, 500);
+          redirectFailures += 1;
+          if (redirectFailures < MAX_REDIRECT_FAILURES) {
+            setTimeout(startRetryLoop, 500);
+          } else {
+            console.warn('[atlassian-redirect] Redirect failed repeatedly, giving up.');
+          }
         }
       }
     } catch (e) {
@@ -194,6 +203,7 @@
   // Re-run on SPA navigation. hashchange and popstate can both fire for the
   // same navigation; debounce them together to avoid a redundant second loop.
   function onNavigation() {
+    redirectFailures = 0;
     clearTimeout(navDebounce);
     navDebounce = setTimeout(startRetryLoop, NAV_DEBOUNCE_MS);
   }
