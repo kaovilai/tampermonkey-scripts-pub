@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.7
+// @version      1.8
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
 // @run-at       document-idle
@@ -46,7 +46,6 @@
 
   const BROKEN_PAGE_PHRASES = [
     'log in to jira to see this work item',
-    'something went wrong on our end',
     'something went wrong',
     'if this keeps happening',
   ];
@@ -98,6 +97,12 @@
 
   if (document.body) {
     observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+  } else if (document.documentElement) {
+    observer.observe(document.documentElement, {
       childList: true,
       subtree: true,
       characterData: true,
