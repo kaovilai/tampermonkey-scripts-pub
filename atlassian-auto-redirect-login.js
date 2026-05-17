@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.93
+// @version      1.94
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -466,8 +466,8 @@
   // Wrapped in try/catch — some hardened browsers disallow overriding history methods.
   const PATCH_KEY = '__atlassianRedirectPatched';
   try {
-    ['pushState', 'replaceState'].forEach(method => {
-      if (history[method][PATCH_KEY]) return;
+    for (const method of ['pushState', 'replaceState']) {
+      if (history[method][PATCH_KEY]) continue;
       const original = history[method];
       const patched = function (...args) {
         const prevUrl = window.location.href;
@@ -484,7 +484,7 @@
       } catch (_) { /* best-effort — not all environments allow this */ }
       patched[PATCH_KEY] = true;
       history[method] = patched;
-    });
+    }
   } catch (e) {
     // history patching unavailable; popstate/hashchange listeners provide fallback coverage
   }
