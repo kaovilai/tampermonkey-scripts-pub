@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.15
+// @version      1.16
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
 // @run-at       document-idle
@@ -120,29 +120,36 @@
     }
   }
 
-  // Debounce MutationObserver to avoid excessive calls on rapid DOM updates
-  observer = new MutationObserver(() => {
-    clearTimeout(debounceHandle);
-    debounceHandle = setTimeout(redirectOnce, 150);
-  });
+  function startRetryLoop() {
+    cleanup();
+    redirected = false;
 
-  const observeTarget = document.body ?? document.documentElement;
-  if (observeTarget) {
-    observer.observe(observeTarget, {
-      childList: true,
-      subtree: true,
-      characterData: false, // skip text-only mutations — structural changes are sufficient
-    });
+    const observeTarget = document.body ?? document.documentElement;
+    if (observeTarget) {
+      observer = new MutationObserver(() => {
+        clearTimeout(debounceHandle);
+        debounceHandle = setTimeout(redirectOnce, 150);
+      });
+      observer.observe(observeTarget, {
+        childList: true,
+        subtree: true,
+        characterData: false,
+      });
+    }
+
+    redirectOnce();
+
+    let tries = 0;
+    timer = setInterval(() => {
+      tries += 1;
+      redirectOnce();
+      if (tries >= 10) cleanup();
+    }, 1000);
   }
 
-  // Run now
-  redirectOnce();
+  // Re-run on SPA navigation (popstate / hashchange)
+  window.addEventListener('popstate', startRetryLoop);
+  window.addEventListener('hashchange', startRetryLoop);
 
-  // Retry a few times in case Atlassian renders late
-  let tries = 0;
-  timer = setInterval(() => {
-    tries += 1;
-    redirectOnce();
-    if (tries >= 10) cleanup();
-  }, 1000);
+  startRetryLoop();
 })();
