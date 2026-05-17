@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.95
+// @version      1.96
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -367,6 +367,7 @@
         redirected = true;
         cleanup();
         try {
+          console.info(`${LOG_PREFIX} Redirecting to login:`, target);
           window.location.replace(target);
         } catch (e) {
           // Replace failed (e.g. blocked by browser policy); restore state and
@@ -375,7 +376,7 @@
           redirected = false;
           redirectFailures += 1;
           if (redirectFailures < MAX_REDIRECT_FAILURES) {
-            setTimeout(startRetryLoop, 500);
+            setTimeout(() => startRetryLoop(false), 500);
           } else {
             console.warn(`${LOG_PREFIX} Redirect failed repeatedly, giving up.`);
           }
