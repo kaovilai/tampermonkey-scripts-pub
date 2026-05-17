@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.35
+// @version      1.36
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
 // @run-at       document-idle
@@ -32,12 +32,15 @@
     return ATLASSIAN_HOST_RE.test(url);
   }
 
+  const LOGGED_IN_SELECTOR = [
+    '#jira-frontend',                                    // Jira: top nav
+    '[data-testid="navigation-apps-switcher-button"]',  // Jira: app switcher
+    '#confluence-ui',                                    // Confluence: page frame
+    '.ia-nav-header',                                    // Confluence: nav header
+  ].join(', ');
+
   function isLoggedIn() {
-    // Jira: top nav present when authenticated
-    if (document.querySelector('#jira-frontend, [data-testid="navigation-apps-switcher-button"]')) return true;
-    // Confluence: page header present when authenticated
-    if (document.querySelector('#confluence-ui, .ia-nav-header')) return true;
-    return false;
+    return !!document.querySelector(LOGGED_IN_SELECTOR);
   }
 
   // Definitive auth-required signals — any one matching alone justifies a redirect.
@@ -56,11 +59,8 @@
 
     // Prefer scanning the main content area — Atlassian's nav HTML can push
     // error messages beyond MAX_TEXT_SCAN when scanning the full body.
-    const mainEl = document.querySelector('main, [role="main"], #main-content, #content');
-    const scanTarget = mainEl ?? document.body;
-    const text = (scanTarget?.textContent || '').slice(0, MAX_TEXT_SCAN);
-    if (AUTH_RE.test(text)) return true;
-    return false;
+    const scanTarget = document.querySelector('main, [role="main"], #main-content, #content') ?? document.body;
+    return AUTH_RE.test((scanTarget?.textContent ?? '').slice(0, MAX_TEXT_SCAN));
   }
 
   function buildLoginUrl() {
