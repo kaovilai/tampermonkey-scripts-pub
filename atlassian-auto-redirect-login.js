@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.10
+// @version      1.11
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
 // @run-at       document-idle
@@ -36,7 +36,7 @@
     }
   }
 
-  function pageIsLoggedIn() {
+  function isLoggedIn() {
     // Jira: top nav present when authenticated
     if (document.querySelector('#jira-frontend, [data-testid="navigation-apps-switcher-button"]')) return true;
     // Confluence: page header present when authenticated
@@ -51,10 +51,7 @@
   ];
 
   function pageLooksBroken() {
-    if (pageIsLoggedIn()) {
-      cleanup();
-      return false;
-    }
+    if (isLoggedIn()) return false;
     const text = (document.body?.textContent || '').toLowerCase();
     return BROKEN_PAGE_PHRASES.some(phrase => text.includes(phrase));
   }
@@ -75,7 +72,19 @@
   let observer;
   let timer;
 
+  function cleanup() {
+    if (observer) { observer.disconnect(); observer = null; }
+    clearTimeout(debounceHandle);
+    debounceHandle = null;
+    clearInterval(timer);
+    timer = null;
+  }
+
   function redirectOnce() {
+    if (isLoggedIn()) {
+      cleanup();
+      return;
+    }
     if (!pageLooksBroken()) return;
 
     const target = buildLoginUrl();
@@ -86,29 +95,17 @@
     }
   }
 
-  function cleanup() {
-    if (observer) observer.disconnect();
-    clearTimeout(debounceHandle);
-    clearInterval(timer);
-  }
-
   // Debounce MutationObserver to avoid excessive calls on rapid DOM updates
   observer = new MutationObserver(() => {
     clearTimeout(debounceHandle);
     debounceHandle = setTimeout(redirectOnce, 150);
   });
 
-  if (document.body) {
-    observer.observe(document.body, {
+  const observeTarget = document.body ?? document.documentElement;
+  if (observeTarget) {
+    observer.observe(observeTarget, {
       childList: true,
       subtree: true,
-      characterData: true,
-    });
-  } else if (document.documentElement) {
-    observer.observe(document.documentElement, {
-      childList: true,
-      subtree: true,
-      characterData: true,
     });
   }
 
