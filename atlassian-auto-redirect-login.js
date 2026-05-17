@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.24
+// @version      1.25
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
 // @run-at       document-idle
@@ -89,6 +89,7 @@
   let observer;
   let intervalHandle;
   let redirected = false;
+  let navDebounce = null;
 
   function cleanup() {
     if (observer) { observer.disconnect(); observer = null; }
@@ -147,7 +148,6 @@
 
   // Re-run on SPA navigation. hashchange and popstate can both fire for the
   // same navigation; debounce them together to avoid a redundant second loop.
-  let navDebounce = null;
   function onNavigation() {
     clearTimeout(navDebounce);
     navDebounce = setTimeout(startRetryLoop, 0);
@@ -160,17 +160,22 @@
   // Only restart when the URL actually changes to avoid redundant loops
   // caused by state-only updates (e.g. replaceState with the same URL).
   // Guard against double-patching if the script is somehow injected twice.
-  ['pushState', 'replaceState'].forEach(method => {
-    if (history[method].__atlassianRedirectPatched) return;
-    const original = history[method];
-    history[method] = function (...args) {
-      const prevUrl = window.location.href;
-      const result = original.apply(this, args);
-      if (window.location.href !== prevUrl) startRetryLoop();
-      return result;
-    };
-    history[method].__atlassianRedirectPatched = true;
-  });
+  // Wrapped in try/catch — some hardened browsers disallow overriding history methods.
+  try {
+    ['pushState', 'replaceState'].forEach(method => {
+      if (history[method].__atlassianRedirectPatched) return;
+      const original = history[method];
+      history[method] = function (...args) {
+        const prevUrl = window.location.href;
+        const result = original.apply(this, args);
+        if (window.location.href !== prevUrl) startRetryLoop();
+        return result;
+      };
+      history[method].__atlassianRedirectPatched = true;
+    });
+  } catch (e) {
+    // history patching unavailable; popstate/hashchange listeners provide fallback coverage
+  }
 
   startRetryLoop();
 })();
