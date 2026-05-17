@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.17
+// @version      2.18
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -271,6 +271,10 @@
     const httpStatus = getNavigationHttpStatus();
     if (AUTH_STATUS_CODES.has(httpStatus)) return true;
 
+    // Fast path: an API 401/403 was observed for this page — treat as broken
+    // even when the SPA renders a generic (non-auth-keyword) error UI.
+    if (_apiAuthDetected) return true;
+
     if (BROKEN_TITLE_RE.test(normalizeText(document.title))) return true;
 
     // Always scan overlay banners (alert/dialog) independently — an auth error
@@ -344,6 +348,7 @@
   let apiRetryHandle = null;
   function scheduleRetryAfterApiError() {
     if (redirected) return;
+    _apiAuthDetected = true;
     clearTimeout(apiRetryHandle);
     let i = 0;
     function next() {
@@ -401,6 +406,13 @@
   let navDebounce = null;
   let visibilityDebounce = null;
   let onlineDebounce = null;
+  // Set to true when a 401/403 is observed from an Atlassian API endpoint.
+  // Allows pageLooksBroken() to return true even when the SPA renders a generic
+  // error page that doesn't contain any AUTH_RE keywords — the HTTP status code
+  // from the API is authoritative evidence that the session has expired.
+  // Reset on genuine SPA navigations (startRetryLoop(true)) so a stale API error
+  // from the previous page doesn't trigger a redirect on the next page.
+  let _apiAuthDetected = false;
 
   // Stop only the polling interval and debounce — keeps the MutationObserver alive
   // so DOM changes that arrive after the poll window still trigger a redirect.
@@ -494,7 +506,7 @@
     // not when rescheduled after a failed window.location.replace() call.
     // Resetting on every call would defeat MAX_REDIRECT_FAILURES and allow
     // infinite retries if the browser blocks the redirect repeatedly.
-    if (resetFailures) redirectFailures = 0;
+    if (resetFailures) { redirectFailures = 0; _apiAuthDetected = false; }
 
     const observeTarget = document.body ?? document.documentElement;
     observer = new MutationObserver(() => {
