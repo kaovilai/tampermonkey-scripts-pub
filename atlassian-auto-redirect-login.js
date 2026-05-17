@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.13
+// @version      1.14
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
 // @run-at       document-idle
@@ -58,7 +58,14 @@
     // Generic error pages
     'something went wrong',
     'if this keeps happening',
+    // HTTP error indicators
+    '403 forbidden',
+    '401 unauthorized',
+    'access denied',
+    'not authorized',
   ];
+
+  const BROKEN_TITLE_RE = /\b(403|401|forbidden|unauthorized|access denied|error|sign in|log in)\b/i;
 
   // Limit scan to first 5 000 chars — error banners appear near the top and
   // scanning the full DOM text of large Atlassian pages is unnecessarily slow.
@@ -66,6 +73,7 @@
 
   function pageLooksBroken() {
     if (isLoggedIn()) return false;
+    if (BROKEN_TITLE_RE.test(document.title)) return true;
     const text = (document.body?.textContent || '').slice(0, MAX_TEXT_SCAN).toLowerCase();
     return BROKEN_PAGE_PHRASES.some(phrase => text.includes(phrase));
   }
