@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.11
+// @version      2.12
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -240,7 +240,6 @@
 
   function collectText(root, limit) {
     if (!root) return '';
-    // eslint-disable-next-line no-bitwise
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT, textNodeFilter);
     let text = '';
     let node;
@@ -317,11 +316,9 @@
     // Include the continue URL only when the total length stays within browser limits.
     // Long Jira filter / board URLs can push the encoded continue value well past the
     // 2048-char limit; omitting it is preferable to producing a URL that silently fails.
-    const candidate = new URL(url);
-    candidate.searchParams.set('continue', currentUrl);
-    if (candidate.toString().length <= MAX_LOGIN_URL_LENGTH) {
-      url.searchParams.set('continue', currentUrl);
-    } else {
+    url.searchParams.set('continue', currentUrl);
+    if (url.toString().length > MAX_LOGIN_URL_LENGTH) {
+      url.searchParams.delete('continue');
       console.warn(`${LOG_PREFIX} continue URL too long (${currentUrl.length} chars) — omitting continue param`);
     }
 
