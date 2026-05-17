@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.25
+// @version      1.26
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
 // @run-at       document-idle
@@ -154,6 +154,12 @@
   }
   window.addEventListener('popstate', onNavigation);
   window.addEventListener('hashchange', onNavigation);
+
+  // Re-run when the user returns to an idle tab whose session may have expired
+  // while they were away — the retry loop only runs for ~10 s after page load.
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && !redirected) startRetryLoop();
+  });
 
   // Intercept history.pushState and history.replaceState for SPA navigations
   // that don't fire popstate (e.g. Jira's React router transitions).
