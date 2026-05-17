@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.18
+// @version      2.19
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -499,14 +499,20 @@
     }
   }
 
-  function startRetryLoop(resetFailures = false) {
+  // resetApiAuth defaults to resetFailures so callers that pass true/false for
+  // both (genuine navigations vs. reschedules) get the existing behaviour. Pass
+  // resetApiAuth=false explicitly to reset the failure counter while preserving
+  // the _apiAuthDetected flag (e.g. tab visibility restore: we want fresh retries
+  // but must not discard an API 401/403 that was detected while the tab was hidden).
+  function startRetryLoop(resetFailures = false, resetApiAuth = resetFailures) {
     cleanup();
     redirected = false;
     // Only reset the failure counter on genuine navigations (new page context),
     // not when rescheduled after a failed window.location.replace() call.
     // Resetting on every call would defeat MAX_REDIRECT_FAILURES and allow
     // infinite retries if the browser blocks the redirect repeatedly.
-    if (resetFailures) { redirectFailures = 0; _apiAuthDetected = false; }
+    if (resetFailures) redirectFailures = 0;
+    if (resetApiAuth) _apiAuthDetected = false;
 
     const observeTarget = document.body ?? document.documentElement;
     observer = new MutationObserver(() => {
@@ -571,7 +577,10 @@
         clearTimeout(visibilityDebounce);
         if (observer === null) {
           // Both polling and observation have stopped — full restart needed.
-          visibilityDebounce = setTimeout(() => startRetryLoop(true), VISIBILITY_DEBOUNCE_MS);
+          // Pass resetApiAuth=false to preserve any API 401/403 flag that was
+          // set while the tab was hidden (so pageLooksBroken() still returns
+          // true even if the DOM error UI hasn't rendered yet on tab restore).
+          visibilityDebounce = setTimeout(() => startRetryLoop(true, false), VISIBILITY_DEBOUNCE_MS);
         } else {
           // Observer is still connected — skip teardown/reconnect and just
           // trigger a redirect check directly to avoid a brief monitoring gap.
