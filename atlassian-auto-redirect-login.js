@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.96
+// @version      1.97
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -315,6 +315,28 @@
 
   const MAX_REDIRECT_FAILURES = 3;  // give up after this many consecutive replace() failures
 
+  // Cross-page-load rate limit: if this many redirects occur within the window,
+  // stop redirecting for the rest of the browser session to prevent redirect loops.
+  const RATE_LIMIT_KEY = 'atlassian-redirect-ts';
+  const RATE_LIMIT_WINDOW_MS = 30000;
+  const RATE_LIMIT_MAX = 3;
+
+  function isRedirectRateLimited() {
+    try {
+      const now = Date.now();
+      const stored = sessionStorage.getItem(RATE_LIMIT_KEY);
+      const timestamps = stored
+        ? JSON.parse(stored).filter(t => now - t < RATE_LIMIT_WINDOW_MS)
+        : [];
+      if (timestamps.length >= RATE_LIMIT_MAX) return true;
+      timestamps.push(now);
+      sessionStorage.setItem(RATE_LIMIT_KEY, JSON.stringify(timestamps));
+      return false;
+    } catch {
+      return false; // fail open if sessionStorage is unavailable
+    }
+  }
+
   let debounceHandle = null;
   let observer = null;
   let intervalHandle = null;
@@ -364,6 +386,11 @@
         return;
       }
       if (window.location.href !== target) {
+        if (isRedirectRateLimited()) {
+          console.warn(`${LOG_PREFIX} Rate limit reached — too many redirects in ${RATE_LIMIT_WINDOW_MS / 1000}s. Stopping.`);
+          cleanup();
+          return;
+        }
         redirected = true;
         cleanup();
         try {
