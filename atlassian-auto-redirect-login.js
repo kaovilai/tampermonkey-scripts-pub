@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.50
+// @version      1.51
 // @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -183,8 +183,12 @@
 
     const observeTarget = document.body ?? document.documentElement;
     observer = new MutationObserver(() => {
-      clearTimeout(debounceHandle);
-      debounceHandle = setTimeout(redirectOnce, MUTATION_DEBOUNCE_MS);
+      try {
+        clearTimeout(debounceHandle);
+        debounceHandle = setTimeout(redirectOnce, MUTATION_DEBOUNCE_MS);
+      } catch (e) {
+        console.warn('[atlassian-redirect] MutationObserver callback error:', e);
+      }
     });
     observer.observe(observeTarget, {
       childList: true,
@@ -242,13 +246,18 @@
     ['pushState', 'replaceState'].forEach(method => {
       if (history[method][PATCH_KEY]) return;
       const original = history[method];
-      history[method] = function (...args) {
+      const patched = function (...args) {
         const prevUrl = window.location.href;
         const result = original.apply(this, args);
         if (window.location.href !== prevUrl) onNavigation();
         return result;
       };
-      history[method][PATCH_KEY] = true;
+      try {
+        Object.defineProperty(patched, 'name', { value: method });
+        Object.defineProperty(patched, 'length', { value: original.length });
+      } catch (_) { /* best-effort — not all environments allow this */ }
+      patched[PATCH_KEY] = true;
+      history[method] = patched;
     });
   } catch (e) {
     // history patching unavailable; popstate/hashchange listeners provide fallback coverage
