@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.1
+// @version      2.2
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -191,7 +191,7 @@
   // "error" is intentionally excluded — it is too generic and would cause false-positive
   // redirects on non-auth error pages (e.g. 500 pages) if the logged-in DOM selectors
   // ever fail to match. The remaining terms are auth/access-specific.
-  const BROKEN_TITLE_RE = /\b(403|401|forbidden|unauthorized|access denied|sign in|log in|session expired)\b/i;
+  const BROKEN_TITLE_RE = /\b(403|401|forbidden|unauthorized|access denied|sign in|log in|session expired|authentication required|session timed out)\b/i;
 
   // Limit scan to first 5 000 chars — error banners appear near the top and
   // scanning the full DOM text of large Atlassian pages is unnecessarily slow.
@@ -268,7 +268,7 @@
     // (e.g. Jira boards with many toast alerts). Auth errors appear in the first
     // few overlays so scanning a bounded subset is sufficient.
     const MAX_OVERLAY_SCAN = 10;
-    const overlays = document.querySelectorAll('[role="alert"], [role="dialog"], [aria-live="assertive"]');
+    const overlays = document.querySelectorAll('[role="alert"], [role="alertdialog"], [role="dialog"], [aria-live="assertive"]');
     const overlayCount = Math.min(overlays.length, MAX_OVERLAY_SCAN);
     for (let i = 0; i < overlayCount; i++) {
       try {
@@ -533,7 +533,10 @@
         // Capture request URL at call time — mirrors the XHR open() capture.
         // response.url reflects the final URL after redirects and can be empty
         // for opaque (no-cors) responses; the original request URL is the reliable source.
-        const requestUrl = typeof args[0] === 'string' ? args[0] : (args[0]?.url ?? '');
+        // args[0] may be a string, a Request object (has .url), or a URL object (has .href).
+        const requestUrl = typeof args[0] === 'string' ? args[0]
+          : args[0] instanceof URL ? args[0].href
+          : (args[0]?.url ?? '');
         const response = await _originalFetch.apply(this, args);
         try {
           if (AUTH_STATUS_CODES.has(response.status)
