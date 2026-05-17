@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.79
+// @version      1.80
 // @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -158,6 +158,17 @@
     'your session is invalid',
   ].map(escapeRegExp).join('|'), 'i');
 
+  // Use Navigation Timing API to detect HTTP 401/403 responses directly.
+  // More reliable than text scanning for server-rendered error pages where
+  // the auth error message may not match any AUTH_RE pattern.
+  // responseStatus was added in Chromium 107 / Firefox 131; older browsers
+  // return undefined, so the fallback (0) safely bypasses the check.
+  function getNavigationHttpStatus() {
+    try {
+      return performance.getEntriesByType('navigation')[0]?.responseStatus ?? 0;
+    } catch { return 0; }
+  }
+
   // "error" is intentionally excluded — it is too generic and would cause false-positive
   // redirects on non-auth error pages (e.g. 500 pages) if the logged-in DOM selectors
   // ever fail to match. The remaining terms are auth/access-specific.
@@ -215,6 +226,10 @@
   }
 
   function pageLooksBroken() {
+    // Fast path: HTTP status from Navigation Timing API (no DOM access needed).
+    const httpStatus = getNavigationHttpStatus();
+    if (httpStatus === 401 || httpStatus === 403) return true;
+
     if (BROKEN_TITLE_RE.test(document.title)) return true;
 
     // Always scan overlay banners (alert/dialog) independently — an auth error
