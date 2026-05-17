@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.4
+// @version      2.5
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -308,6 +308,26 @@
   const NAV_DEBOUNCE_MS = 100;       // SPA navigation → retry loop delay
   const VISIBILITY_DEBOUNCE_MS = 200; // tab visibility restore → retry loop delay
 
+  // Delays (ms) for follow-up checks after fetch/XHR detect a 401/403.
+  // The SPA may need a few render cycles before the auth-error UI appears in
+  // the DOM; a single setTimeout(0) often fires before that paint.
+  const API_AUTH_RETRY_DELAYS = [0, 300, 700, 1500];
+
+  // Schedule a short burst of redirectOnce() calls when an API 401/403 is
+  // observed. Uses clearTimeout + a shared handle so rapid successive API
+  // errors (common on auth-gated pages that fire multiple concurrent requests)
+  // collapse into a single burst rather than piling up.
+  let apiRetryHandle = null;
+  function scheduleRetryAfterApiError() {
+    clearTimeout(apiRetryHandle);
+    let i = 0;
+    function next() {
+      if (i >= API_AUTH_RETRY_DELAYS.length) { apiRetryHandle = null; return; }
+      apiRetryHandle = setTimeout(() => { redirectOnce(); i++; next(); }, API_AUTH_RETRY_DELAYS[i]);
+    }
+    next();
+  }
+
   const MAX_REDIRECT_FAILURES = 3;  // give up after this many consecutive replace() failures
 
   // Cross-page-load rate limit: if this many redirects occur within the window,
@@ -358,6 +378,8 @@
     navDebounce = null;
     clearTimeout(visibilityDebounce);
     visibilityDebounce = null;
+    clearTimeout(apiRetryHandle);
+    apiRetryHandle = null;
   }
 
   function redirectOnce() {
@@ -544,7 +566,7 @@
             && isAtlassianApiUrl(requestUrl || response.url)
             && !isLoggedIn()
             && !redirected) {
-            setTimeout(redirectOnce, 0);
+            scheduleRetryAfterApiError();
           }
         } catch (e) {
           console.warn(`${LOG_PREFIX} fetch intercept error:`, e);
@@ -580,7 +602,7 @@
                 && isAtlassianApiUrl(requestUrl || this.responseURL)
                 && !isLoggedIn()
                 && !redirected) {
-                setTimeout(redirectOnce, 0);
+                scheduleRetryAfterApiError();
               }
             } catch (e) {
               console.warn(`${LOG_PREFIX} XHR intercept error:`, e);
