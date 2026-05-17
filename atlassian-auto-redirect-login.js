@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.19
+// @version      1.20
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
 // @run-at       document-idle
@@ -84,9 +84,8 @@
     const text = (document.body?.textContent || '').slice(0, MAX_TEXT_SCAN).toLowerCase();
     if (titleBroken) return true;
     if (AUTH_PHRASES.some(phrase => text.includes(phrase))) return true;
-    // Require title corroboration for ambiguous phrases to avoid redirecting on
-    // plain service-outage pages where login wouldn't help.
-    if (titleBroken && GENERIC_ERROR_PHRASES.some(phrase => text.includes(phrase))) return true;
+    // GENERIC_ERROR_PHRASES alone (e.g. service-outage pages) do not justify a
+    // redirect; they require title corroboration, which is already handled above.
     return false;
   }
 
