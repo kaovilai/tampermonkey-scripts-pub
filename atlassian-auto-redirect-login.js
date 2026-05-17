@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.18
+// @version      1.19
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
 // @run-at       document-idle
@@ -44,7 +44,8 @@
     return false;
   }
 
-  const BROKEN_PAGE_PHRASES = Object.freeze([
+  // Definitive auth-required signals — any one of these alone justifies a redirect.
+  const AUTH_PHRASES = Object.freeze([
     // Jira auth prompts
     'log in to jira to see this work item',
     'you need to log in to jira',
@@ -55,14 +56,20 @@
     'your session has expired',
     'sign in to continue',
     'you must be logged in',
-    // Generic error pages
-    'something went wrong',
-    'if this keeps happening',
     // HTTP error indicators
     '403 forbidden',
     '401 unauthorized',
     'access denied',
     'not authorized',
+  ]);
+
+  // Ambiguous error signals — these also appear on service-outage pages (503s)
+  // where the user IS unauthenticated but logging in would not help.
+  // Only treat them as a broken-auth page when the title independently confirms
+  // an auth/access problem.
+  const GENERIC_ERROR_PHRASES = Object.freeze([
+    'something went wrong',
+    'if this keeps happening',
   ]);
 
   const BROKEN_TITLE_RE = /\b(403|401|forbidden|unauthorized|access denied|error|sign in|log in)\b/i;
@@ -73,9 +80,14 @@
 
   function pageLooksBroken(loggedIn) {
     if (loggedIn) return false;
-    if (BROKEN_TITLE_RE.test(document.title)) return true;
+    const titleBroken = BROKEN_TITLE_RE.test(document.title);
     const text = (document.body?.textContent || '').slice(0, MAX_TEXT_SCAN).toLowerCase();
-    return BROKEN_PAGE_PHRASES.some(phrase => text.includes(phrase));
+    if (titleBroken) return true;
+    if (AUTH_PHRASES.some(phrase => text.includes(phrase))) return true;
+    // Require title corroboration for ambiguous phrases to avoid redirecting on
+    // plain service-outage pages where login wouldn't help.
+    if (titleBroken && GENERIC_ERROR_PHRASES.some(phrase => text.includes(phrase))) return true;
+    return false;
   }
 
   function buildLoginUrl() {
