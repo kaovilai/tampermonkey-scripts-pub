@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.32
+// @version      1.33
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
 // @run-at       document-idle
@@ -40,29 +40,10 @@
     return false;
   }
 
-  // Definitive auth-required signals — any one of these alone justifies a redirect.
-  const AUTH_PHRASES = Object.freeze([
-    // Jira auth prompts
-    'log in to jira to see this work item',
-    'you need to log in to jira',
-    // Confluence auth prompts
-    'log in to confluence',
-    'you need to log in to confluence',
-    // Generic Atlassian session/auth
-    'your session has expired',
-    'sign in to continue',
-    'you must be logged in',
-    // HTTP error indicators
-    '403 forbidden',
-    '401 unauthorized',
-    'access denied',
-    'not authorized',
-    // Additional Atlassian / generic auth prompts
-    'please sign in',
-    'session expired',
-    'you are not logged in',
-    'authentication required',
-  ]);
+  // Definitive auth-required signals — any one matching alone justifies a redirect.
+  // Pre-compiled as a single RegExp so repeated DOM scans use one engine pass
+  // instead of iterating through an array of string includes().
+  const AUTH_RE = /log in to jira to see this work item|you need to log in to jira|log in to confluence|you need to log in to confluence|your session has expired|sign in to continue|you must be logged in|403 forbidden|401 unauthorized|access denied|not authorized|please sign in|session expired|you are not logged in|authentication required/;
 
   const BROKEN_TITLE_RE = /\b(403|401|forbidden|unauthorized|access denied|error|sign in|log in)\b/i;
 
@@ -78,7 +59,7 @@
     const mainEl = document.querySelector('main, [role="main"], #main-content, #content');
     const scanTarget = mainEl ?? document.body;
     const text = (scanTarget?.textContent || '').slice(0, MAX_TEXT_SCAN).toLowerCase();
-    if (AUTH_PHRASES.some(phrase => text.includes(phrase))) return true;
+    if (AUTH_RE.test(text)) return true;
     return false;
   }
 
