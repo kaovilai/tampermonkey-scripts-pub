@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.80
+// @version      1.81
 // @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -458,6 +458,42 @@
   } catch (e) {
     // history patching unavailable; popstate/hashchange listeners provide fallback coverage
   }
+
+  // Intercept fetch() to detect 401/403 API responses in SPA contexts where
+  // auth errors surface as JSON API failures before (or without) any DOM change.
+  // Guards against double-patching when the script is injected more than once.
+  try {
+    if (typeof window.fetch === 'function' && !window.fetch[PATCH_KEY]) {
+      const _originalFetch = window.fetch;
+      const _patchedFetch = function (...args) {
+        return _originalFetch.apply(this, args).then(response => {
+          if ((response.status === 401 || response.status === 403) && !redirected) {
+            setTimeout(redirectOnce, 0);
+          }
+          return response;
+        });
+      };
+      _patchedFetch[PATCH_KEY] = true;
+      window.fetch = _patchedFetch;
+    }
+  } catch (_) { /* fetch patching unavailable */ }
+
+  // Intercept XMLHttpRequest to detect 401/403 responses in older SPA code paths.
+  try {
+    if (!XMLHttpRequest.prototype.open[PATCH_KEY]) {
+      const _originalXHROpen = XMLHttpRequest.prototype.open;
+      const _patchedXHROpen = function (...args) {
+        this.addEventListener('readystatechange', function () {
+          if (this.readyState === 4 && (this.status === 401 || this.status === 403) && !redirected) {
+            setTimeout(redirectOnce, 0);
+          }
+        });
+        return _originalXHROpen.apply(this, args);
+      };
+      _patchedXHROpen[PATCH_KEY] = true;
+      XMLHttpRequest.prototype.open = _patchedXHROpen;
+    }
+  } catch (_) { /* XHR patching unavailable */ }
 
   startRetryLoop(true);
 })();
