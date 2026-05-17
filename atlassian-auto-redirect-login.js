@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.51
+// @version      1.52
 // @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -52,7 +52,7 @@
   // Definitive auth-required signals — any one matching alone justifies a redirect.
   // Pre-compiled as a single RegExp so repeated DOM scans use one engine pass
   // instead of iterating through an array of string includes().
-  const AUTH_RE = /log in to jira to see this work item|you need to log in to jira|log in to confluence|you need to log in to confluence|your session has expired|sign in to continue|you must be logged in|403 forbidden|401 unauthorized|access denied|not authorized|please sign in|session expired|you are not logged in|authentication required|session timed out|login required|you have been logged out|your login session|login is required|requires login/i;
+  const AUTH_RE = /log in to jira to see this work item|you need to log in to jira|log in to confluence|you need to log in to confluence|your session has expired|sign in to continue|you must be logged in|403 forbidden|401 unauthorized|access denied|not authorized|please sign in|session expired|you are not logged in|authentication required|session timed out|login required|you have been logged out|your login session|login is required|requires login|saml authentication required|sso login required|single sign-on required|identity provider|idp.*redirect|redirecting to.*login/i;
 
   const BROKEN_TITLE_RE = /\b(403|401|forbidden|unauthorized|access denied|error|sign in|log in)\b/i;
 
@@ -90,7 +90,11 @@
 
     // Prefer scanning the main content area — Atlassian's nav HTML can push
     // error messages beyond MAX_TEXT_SCAN when scanning the full body.
-    const scanTarget = document.querySelector('main, [role="main"], #main-content, #content') ?? document.body;
+    // Also check alert/dialog roles which Atlassian uses for overlay error banners.
+    const scanTarget =
+      document.querySelector('[role="alert"], [role="dialog"]') ??
+      document.querySelector('main, [role="main"], #main-content, #content') ??
+      document.body;
     return AUTH_RE.test(collectText(scanTarget, MAX_TEXT_SCAN));
   }
 
