@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.76
+// @version      1.77
 // @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -392,7 +392,14 @@
     try {
       if (!document.hidden && !redirected && intervalHandle === null && !isLoggedIn() && !isAlreadyRedirecting()) {
         clearTimeout(visibilityDebounce);
-        visibilityDebounce = setTimeout(() => startRetryLoop(true), VISIBILITY_DEBOUNCE_MS);
+        if (observer === null) {
+          // Both polling and observation have stopped — full restart needed.
+          visibilityDebounce = setTimeout(() => startRetryLoop(true), VISIBILITY_DEBOUNCE_MS);
+        } else {
+          // Observer is still connected — skip teardown/reconnect and just
+          // trigger a redirect check directly to avoid a brief monitoring gap.
+          visibilityDebounce = setTimeout(redirectOnce, VISIBILITY_DEBOUNCE_MS);
+        }
       }
     } catch (e) {
       console.warn('[atlassian-redirect] visibilitychange error:', e);
@@ -415,9 +422,12 @@
       const original = history[method];
       const patched = function (...args) {
         const prevUrl = window.location.href;
-        const result = original.apply(this, args);
-        if (window.location.href !== prevUrl) onNavigation();
-        return result;
+        try {
+          return original.apply(this, args);
+        } finally {
+          // Use finally so onNavigation() fires even if the original throws.
+          if (window.location.href !== prevUrl) onNavigation();
+        }
       };
       try {
         Object.defineProperty(patched, 'name', { value: method });
