@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.53
+// @version      1.54
 // @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -88,14 +88,20 @@
   function pageLooksBroken() {
     if (BROKEN_TITLE_RE.test(document.title)) return true;
 
+    // Always scan overlay banners (alert/dialog) independently — an auth error
+    // may appear in a modal that lives outside <main>, so checking only the
+    // first matched element would silently miss it.
+    const overlays = document.querySelectorAll('[role="alert"], [role="dialog"]');
+    for (const el of overlays) {
+      if (AUTH_RE.test(collectText(el, MAX_TEXT_SCAN))) return true;
+    }
+
     // Prefer scanning the main content area — Atlassian's nav HTML can push
     // error messages beyond MAX_TEXT_SCAN when scanning the full body.
-    // As a fallback, check alert/dialog roles for overlay error banners.
-    const scanTarget =
+    const mainTarget =
       document.querySelector('main, [role="main"], #main-content, #content') ??
-      document.querySelector('[role="alert"], [role="dialog"]') ??
       document.body;
-    return AUTH_RE.test(collectText(scanTarget, MAX_TEXT_SCAN));
+    return AUTH_RE.test(collectText(mainTarget, MAX_TEXT_SCAN));
   }
 
   function buildLoginUrl() {
