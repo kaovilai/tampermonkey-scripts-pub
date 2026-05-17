@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.7
+// @version      2.8
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -350,9 +350,15 @@
   const RATE_LIMIT_WINDOW_MS = 30000;
   const RATE_LIMIT_MAX = 3;
 
+  // In-memory fallback for when sessionStorage is unavailable (e.g. strict
+  // privacy mode, storage quota exceeded). Resets on page reload, so it only
+  // guards within the current page session — less durable than sessionStorage
+  // but far safer than failing open with no rate limiting at all.
+  let _inMemoryRateLimitTimestamps = [];
+
   function isRedirectRateLimited() {
+    const now = Date.now();
     try {
-      const now = Date.now();
       const stored = sessionStorage.getItem(RATE_LIMIT_KEY);
       let parsed;
       try { parsed = JSON.parse(stored); } catch { parsed = null; }
@@ -364,7 +370,11 @@
       sessionStorage.setItem(RATE_LIMIT_KEY, JSON.stringify(timestamps));
       return false;
     } catch {
-      return false; // fail open if sessionStorage is unavailable
+      // sessionStorage unavailable — fall back to in-memory rate limiting.
+      _inMemoryRateLimitTimestamps = _inMemoryRateLimitTimestamps.filter(t => now - t < RATE_LIMIT_WINDOW_MS);
+      if (_inMemoryRateLimitTimestamps.length >= RATE_LIMIT_MAX) return true;
+      _inMemoryRateLimitTimestamps.push(now);
+      return false;
     }
   }
 
