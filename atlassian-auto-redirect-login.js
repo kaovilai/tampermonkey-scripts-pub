@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.13
+// @version      2.14
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -521,9 +521,15 @@
   // Chrome 102+ Navigation API — fires for all SPA navigations including
   // those that don't trigger popstate (e.g. same-document navigations).
   // Complements the history.pushState/replaceState patch below.
+  // Guard with isSafeAtlassianUrl() so that our own window.location.replace()
+  // to the login page does not trigger a spurious onNavigation() call that
+  // would reset the monitoring loop (and `redirected`) mid-redirect.
   try {
     window.navigation?.addEventListener('navigate', (e) => {
-      if (e.navigationType !== 'reload' && e.destination?.url && e.destination.url !== window.location.href) onNavigation();
+      if (e.navigationType !== 'reload'
+        && e.destination?.url
+        && e.destination.url !== window.location.href
+        && isSafeAtlassianUrl(e.destination.url)) onNavigation();
     });
   } catch (_) { /* Navigation API unavailable or restricted */ }
 
