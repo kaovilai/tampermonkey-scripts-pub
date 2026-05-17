@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.54
+// @version      1.55
 // @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -200,10 +200,13 @@
         console.warn('[atlassian-redirect] MutationObserver callback error:', e);
       }
     });
+    // characterData is intentionally omitted: auth error messages are injected
+    // as new DOM elements (childList), not as in-place text node modifications.
+    // Including characterData would fire on every React text reconciliation
+    // during page load, repeatedly resetting the debounce and delaying detection.
     observer.observe(observeTarget, {
       childList: true,
       subtree: true,
-      characterData: true,
     });
 
     redirectOnce();
