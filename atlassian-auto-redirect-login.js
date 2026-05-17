@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.66
+// @version      1.67
 // @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -122,21 +122,26 @@
 
   // Walk text nodes with early exit once we've collected MAX_TEXT_SCAN chars,
   // avoiding the cost of building the full textContent string for large subtrees.
-  // Excludes <script> and <style> nodes to prevent false positives from inline
-  // JS/CSS that may contain auth-related strings (e.g. 'loginRequired').
-  // TEMPLATE contents are inert (not rendered) but still contain text nodes —
-  // including them would produce false-positive auth-string matches.
+  // Excludes <script>, <style>, <noscript>, and <template> subtrees entirely via
+  // FILTER_REJECT (skips descent into matching elements) rather than checking
+  // node.parentElement.closest() on every text node (O(depth) per node).
+  // Using SHOW_TEXT | SHOW_ELEMENT lets the filter see element nodes so it can
+  // prune whole subtrees; FILTER_SKIP on other elements means "don't yield this
+  // node but do descend", while FILTER_REJECT means "skip this subtree entirely".
+  const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE']);
   const textNodeFilter = {
     acceptNode(node) {
-      return node.parentElement?.closest('script, style, noscript, template')
-        ? NodeFilter.FILTER_SKIP
-        : NodeFilter.FILTER_ACCEPT;
+      if (node.nodeType !== Node.TEXT_NODE) {
+        return SKIP_TAGS.has(node.tagName) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_SKIP;
+      }
+      return NodeFilter.FILTER_ACCEPT;
     },
   };
 
   function collectText(root, limit) {
     if (!root) return '';
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, textNodeFilter);
+    // eslint-disable-next-line no-bitwise
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT, textNodeFilter);
     let text = '';
     let node;
     while ((node = walker.nextNode()) !== null) {
