@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.98
+// @version      1.99
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -536,10 +536,14 @@
     if (typeof window.fetch === 'function' && !window.fetch[PATCH_KEY]) {
       const _originalFetch = window.fetch;
       const _patchedFetch = async function (...args) {
+        // Capture request URL at call time — mirrors the XHR open() capture.
+        // response.url reflects the final URL after redirects and can be empty
+        // for opaque (no-cors) responses; the original request URL is the reliable source.
+        const requestUrl = typeof args[0] === 'string' ? args[0] : (args[0]?.url ?? '');
         const response = await _originalFetch.apply(this, args);
         try {
           if (AUTH_STATUS_CODES.has(response.status)
-            && isAtlassianApiUrl(response.url)
+            && isAtlassianApiUrl(response.url || requestUrl)
             && !isLoggedIn()
             && !redirected) {
             setTimeout(redirectOnce, 0);
