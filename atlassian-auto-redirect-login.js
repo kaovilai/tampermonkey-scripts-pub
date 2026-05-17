@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.39
+// @version      1.40
 // @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -195,7 +195,7 @@
   // became hidden and visible again within the first 10 s).
   // Debounce to avoid rapid restarts when the user switches tabs quickly.
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && !redirected && !intervalHandle) {
+    if (!document.hidden && !redirected && !intervalHandle && !isLoggedIn()) {
       clearTimeout(visibilityDebounce);
       visibilityDebounce = setTimeout(startRetryLoop, VISIBILITY_DEBOUNCE_MS);
     }
