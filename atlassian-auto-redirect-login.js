@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.34
+// @version      1.35
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
 // @run-at       document-idle
@@ -157,16 +157,19 @@
   // same navigation; debounce them together to avoid a redundant second loop.
   function onNavigation() {
     clearTimeout(navDebounce);
-    navDebounce = setTimeout(startRetryLoop, 0);
+    // 100 ms lets the SPA finish rendering the new route before we scan.
+    navDebounce = setTimeout(startRetryLoop, 100);
   }
   window.addEventListener('popstate', onNavigation);
   window.addEventListener('hashchange', onNavigation);
 
   // Re-run when the user returns to an idle tab whose session may have expired
   // while they were away — the retry loop only runs for ~10 s after page load.
+  // Skip the restart if the polling interval is still active (e.g. the tab
+  // became hidden and visible again within the first 10 s).
   // Debounce to avoid rapid restarts when the user switches tabs quickly.
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && !redirected) {
+    if (!document.hidden && !redirected && !intervalHandle) {
       clearTimeout(visibilityDebounce);
       visibilityDebounce = setTimeout(startRetryLoop, 200);
     }
