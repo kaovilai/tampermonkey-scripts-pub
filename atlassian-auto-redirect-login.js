@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.17
+// @version      1.18
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
 // @run-at       document-idle
@@ -71,8 +71,8 @@
   // scanning the full DOM text of large Atlassian pages is unnecessarily slow.
   const MAX_TEXT_SCAN = 5000;
 
-  function pageLooksBroken() {
-    if (isLoggedIn()) return false;
+  function pageLooksBroken(loggedIn) {
+    if (loggedIn) return false;
     if (BROKEN_TITLE_RE.test(document.title)) return true;
     const text = (document.body?.textContent || '').slice(0, MAX_TEXT_SCAN).toLowerCase();
     return BROKEN_PAGE_PHRASES.some(phrase => text.includes(phrase));
@@ -92,24 +92,25 @@
 
   let debounceHandle = null;
   let observer;
-  let timer;
+  let intervalHandle;
   let redirected = false;
 
   function cleanup() {
     if (observer) { observer.disconnect(); observer = null; }
     clearTimeout(debounceHandle);
     debounceHandle = null;
-    clearInterval(timer);
-    timer = null;
+    clearInterval(intervalHandle);
+    intervalHandle = null;
   }
 
   function redirectOnce() {
     if (redirected) return;
-    if (isLoggedIn()) {
+    const loggedIn = isLoggedIn();
+    if (loggedIn) {
       cleanup();
       return;
     }
-    if (!pageLooksBroken()) return;
+    if (!pageLooksBroken(loggedIn)) return;
 
     const target = buildLoginUrl();
 
@@ -140,7 +141,7 @@
     redirectOnce();
 
     let tries = 0;
-    timer = setInterval(() => {
+    intervalHandle = setInterval(() => {
       tries += 1;
       redirectOnce();
       if (tries >= 10) cleanup();
