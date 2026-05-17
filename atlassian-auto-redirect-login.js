@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.12
+// @version      2.13
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -425,6 +425,10 @@
         return;
       }
       if (isAlreadyRedirecting()) { cleanup(); return; }
+      // Skip redirect when offline — auth-like errors may surface due to network
+      // unavailability rather than session expiry; redirecting to a login page
+      // that cannot load would be misleading and waste a rate-limit slot.
+      if (navigator.onLine === false) return;
       if (!pageLooksBroken()) return;
 
       const target = buildLoginUrl();
@@ -543,6 +547,22 @@
       }
     } catch (e) {
       console.warn(`${LOG_PREFIX} visibilitychange error:`, e);
+    }
+  });
+
+  // Re-run when connectivity is restored — a broken-looking page that was
+  // skipped due to being offline should be re-evaluated once the network is back.
+  window.addEventListener('online', () => {
+    try {
+      if (!redirected && !isLoggedIn() && !isAlreadyRedirecting()) {
+        if (observer === null) {
+          startRetryLoop(false);
+        } else {
+          redirectOnce();
+        }
+      }
+    } catch (e) {
+      console.warn(`${LOG_PREFIX} online event error:`, e);
     }
   });
 
