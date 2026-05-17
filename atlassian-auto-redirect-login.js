@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.28
+// @version      1.29
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
 // @run-at       document-idle
@@ -71,9 +71,13 @@
   const MAX_TEXT_SCAN = 5000;
 
   function pageLooksBroken() {
-    const titleBroken = BROKEN_TITLE_RE.test(document.title);
-    const text = (document.body?.textContent || '').slice(0, MAX_TEXT_SCAN).toLowerCase();
-    if (titleBroken) return true;
+    if (BROKEN_TITLE_RE.test(document.title)) return true;
+
+    // Prefer scanning the main content area — Atlassian's nav HTML can push
+    // error messages beyond MAX_TEXT_SCAN when scanning the full body.
+    const mainEl = document.querySelector('main, [role="main"], #main-content, #content');
+    const scanTarget = mainEl ?? document.body;
+    const text = (scanTarget?.textContent || '').slice(0, MAX_TEXT_SCAN).toLowerCase();
     if (AUTH_PHRASES.some(phrase => text.includes(phrase))) return true;
     return false;
   }
