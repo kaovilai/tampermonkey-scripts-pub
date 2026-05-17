@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.6
+// @version      1.7
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
 // @run-at       document-idle
@@ -36,23 +36,25 @@
     }
   }
 
-  function pageIsLoggedIn(text) {
-    // Jira indicators
-    if (text.includes('assignee') || text.includes('reporter')) return true;
-    // Confluence indicators
-    if (text.includes('created by') || text.includes('last modified')) return true;
+  function pageIsLoggedIn() {
+    // Jira: top nav present when authenticated
+    if (document.querySelector('#jira-frontend, [data-testid="navigation-apps-switcher-button"]')) return true;
+    // Confluence: page header present when authenticated
+    if (document.querySelector('#confluence-ui, .ia-nav-header')) return true;
     return false;
   }
 
+  const BROKEN_PAGE_PHRASES = [
+    'log in to jira to see this work item',
+    'something went wrong on our end',
+    'something went wrong',
+    'if this keeps happening',
+  ];
+
   function pageLooksBroken() {
+    if (pageIsLoggedIn()) return false;
     const text = (document.body?.innerText || '').toLowerCase();
-    if (pageIsLoggedIn(text)) return false;
-    return (
-      text.includes('log in to jira to see this work item') ||
-      text.includes('something went wrong on our end') ||
-      text.includes('something went wrong') ||
-      text.includes('if this keeps happening')
-    );
+    return BROKEN_PAGE_PHRASES.some(phrase => text.includes(phrase));
   }
 
   function buildLoginUrl() {
