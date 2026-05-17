@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.14
+// @version      2.15
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -360,16 +360,20 @@
   const RATE_LIMIT_WINDOW_MS = 30000;
   const RATE_LIMIT_MAX = 3;
 
-  // In-memory fallback for when sessionStorage is unavailable (e.g. strict
+  // In-memory fallback for when localStorage is unavailable (e.g. strict
   // privacy mode, storage quota exceeded). Resets on page reload, so it only
-  // guards within the current page session — less durable than sessionStorage
+  // guards within the current page session — less durable than localStorage
   // but far safer than failing open with no rate limiting at all.
   let _inMemoryRateLimitTimestamps = [];
 
   function isRedirectRateLimited() {
     const now = Date.now();
     try {
-      const stored = sessionStorage.getItem(RATE_LIMIT_KEY);
+      // localStorage is shared across all tabs of the same origin, so multiple
+      // open Atlassian tabs that all detect a session expiry are collectively
+      // capped at RATE_LIMIT_MAX redirects — preventing a redirect storm where
+      // N tabs each independently redirect up to RATE_LIMIT_MAX times.
+      const stored = localStorage.getItem(RATE_LIMIT_KEY);
       let parsed;
       try { parsed = JSON.parse(stored); } catch { parsed = null; }
       const timestamps = Array.isArray(parsed)
@@ -377,10 +381,10 @@
         : [];
       if (timestamps.length >= RATE_LIMIT_MAX) return true;
       timestamps.push(now);
-      sessionStorage.setItem(RATE_LIMIT_KEY, JSON.stringify(timestamps));
+      localStorage.setItem(RATE_LIMIT_KEY, JSON.stringify(timestamps));
       return false;
     } catch {
-      // sessionStorage unavailable — fall back to in-memory rate limiting.
+      // localStorage unavailable — fall back to in-memory rate limiting.
       _inMemoryRateLimitTimestamps = _inMemoryRateLimitTimestamps.filter(t => now - t < RATE_LIMIT_WINDOW_MS);
       if (_inMemoryRateLimitTimestamps.length >= RATE_LIMIT_MAX) return true;
       _inMemoryRateLimitTimestamps.push(now);
