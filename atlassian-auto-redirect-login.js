@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.48
+// @version      1.49
 // @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -66,15 +66,11 @@
   // JS/CSS that may contain auth-related strings (e.g. 'loginRequired').
   // TEMPLATE contents are inert (not rendered) but still contain text nodes —
   // including them would produce false-positive auth-string matches.
-  const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE']);
   const textNodeFilter = {
     acceptNode(node) {
-      let el = node.parentElement;
-      while (el) {
-        if (SKIP_TAGS.has(el.tagName)) return NodeFilter.FILTER_REJECT;
-        el = el.parentElement;
-      }
-      return NodeFilter.FILTER_ACCEPT;
+      return node.parentElement?.closest('script, style, noscript, template')
+        ? NodeFilter.FILTER_REJECT
+        : NodeFilter.FILTER_ACCEPT;
     },
   };
 
@@ -238,9 +234,10 @@
   // caused by state-only updates (e.g. replaceState with the same URL).
   // Guard against double-patching if the script is somehow injected twice.
   // Wrapped in try/catch — some hardened browsers disallow overriding history methods.
+  const PATCHED = Symbol('atlassianRedirectPatched');
   try {
     ['pushState', 'replaceState'].forEach(method => {
-      if (history[method].__atlassianRedirectPatched) return;
+      if (history[method][PATCHED]) return;
       const original = history[method];
       history[method] = function (...args) {
         const prevUrl = window.location.href;
@@ -248,7 +245,7 @@
         if (window.location.href !== prevUrl) onNavigation();
         return result;
       };
-      history[method].__atlassianRedirectPatched = true;
+      history[method][PATCHED] = true;
     });
   } catch (e) {
     // history patching unavailable; popstate/hashchange listeners provide fallback coverage
