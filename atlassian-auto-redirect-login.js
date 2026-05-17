@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.30
+// @version      1.31
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
 // @run-at       document-idle
@@ -130,8 +130,11 @@
       try {
         window.location.replace(target);
       } catch (e) {
-        // Replace failed (e.g. blocked by browser policy); allow a retry.
+        // Replace failed (e.g. blocked by browser policy); restore state and
+        // reschedule monitoring — cleanup() already ran, so without this the
+        // script would be silently dead with no active observer or interval.
         redirected = false;
+        setTimeout(startRetryLoop, 500);
       }
     }
   }
