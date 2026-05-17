@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.97
+// @version      1.98
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -325,8 +325,10 @@
     try {
       const now = Date.now();
       const stored = sessionStorage.getItem(RATE_LIMIT_KEY);
-      const timestamps = stored
-        ? JSON.parse(stored).filter(t => now - t < RATE_LIMIT_WINDOW_MS)
+      let parsed;
+      try { parsed = JSON.parse(stored); } catch { parsed = null; }
+      const timestamps = Array.isArray(parsed)
+        ? parsed.filter(t => now - t < RATE_LIMIT_WINDOW_MS)
         : [];
       if (timestamps.length >= RATE_LIMIT_MAX) return true;
       timestamps.push(now);
@@ -563,11 +565,17 @@
         // attach a duplicate readystatechange listener on each call.
         if (!this[PATCH_KEY]) {
           this[PATCH_KEY] = true;
+          // Capture the URL at open() time rather than reading responseURL at
+          // completion — responseURL can be empty for synchronous requests and
+          // may point to a redirect destination instead of the original URL.
+          // isAtlassianApiUrl() accepts relative URLs (resolves against window.location),
+          // so using the raw args[1] value is safe here.
+          const requestUrl = args[1] ?? '';
           this.addEventListener('readystatechange', function () {
             try {
               if (this.readyState === XMLHttpRequest.DONE
                 && AUTH_STATUS_CODES.has(this.status)
-                && isAtlassianApiUrl(this.responseURL)
+                && isAtlassianApiUrl(requestUrl || this.responseURL)
                 && !isLoggedIn()
                 && !redirected) {
                 setTimeout(redirectOnce, 0);
