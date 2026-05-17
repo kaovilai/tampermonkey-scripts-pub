@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.64
+// @version      1.65
 // @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -107,7 +107,10 @@
     'log back in',
   ].join('|'), 'i');
 
-  const BROKEN_TITLE_RE = /\b(403|401|forbidden|unauthorized|access denied|error|sign in|log in)\b/i;
+  // "error" is intentionally excluded — it is too generic and would cause false-positive
+  // redirects on non-auth error pages (e.g. 500 pages) if the logged-in DOM selectors
+  // ever fail to match. The remaining terms are auth/access-specific.
+  const BROKEN_TITLE_RE = /\b(403|401|forbidden|unauthorized|access denied|sign in|log in)\b/i;
 
   // Limit scan to first 5 000 chars — error banners appear near the top and
   // scanning the full DOM text of large Atlassian pages is unnecessarily slow.
@@ -233,7 +236,6 @@
         cleanup();
         try {
           window.location.replace(target);
-          redirectFailures = 0;
         } catch (e) {
           // Replace failed (e.g. blocked by browser policy); restore state and
           // reschedule monitoring — cleanup() already ran, so without this the
