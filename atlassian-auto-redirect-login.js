@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.85
+// @version      1.86
 // @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -506,19 +506,25 @@
     if (!XMLHttpRequest.prototype.open[PATCH_KEY]) {
       const _originalXHROpen = XMLHttpRequest.prototype.open;
       const _patchedXHROpen = function (...args) {
-        this.addEventListener('readystatechange', function () {
-          try {
-            if (this.readyState === 4
-              && AUTH_STATUS_CODES.has(this.status)
-              && isAtlassianApiUrl(this.responseURL)
-              && !isLoggedIn()
-              && !redirected) {
-              setTimeout(redirectOnce, 0);
+        // Guard against listener accumulation: XHR.open() may be called more
+        // than once on the same instance (e.g. connection reuse), which would
+        // attach a duplicate readystatechange listener on each call.
+        if (!this[PATCH_KEY]) {
+          this[PATCH_KEY] = true;
+          this.addEventListener('readystatechange', function () {
+            try {
+              if (this.readyState === 4
+                && AUTH_STATUS_CODES.has(this.status)
+                && isAtlassianApiUrl(this.responseURL)
+                && !isLoggedIn()
+                && !redirected) {
+                setTimeout(redirectOnce, 0);
+              }
+            } catch (e) {
+              console.warn('[atlassian-redirect] XHR intercept error:', e);
             }
-          } catch (e) {
-            console.warn('[atlassian-redirect] XHR intercept error:', e);
-          }
-        });
+          });
+        }
         return _originalXHROpen.apply(this, args);
       };
       _patchedXHROpen[PATCH_KEY] = true;
