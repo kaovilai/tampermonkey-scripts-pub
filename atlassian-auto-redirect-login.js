@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.40
+// @version      1.41
 // @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -11,6 +11,7 @@
 // @updateURL    https://raw.githubusercontent.com/kaovilai/tampermonkey-scripts-pub/main/atlassian-auto-redirect-login.js
 // @downloadURL  https://raw.githubusercontent.com/kaovilai/tampermonkey-scripts-pub/main/atlassian-auto-redirect-login.js
 // @supportURL   https://github.com/kaovilai/tampermonkey-scripts-pub
+// @homepageURL  https://github.com/kaovilai/tampermonkey-scripts-pub
 // ==/UserScript==
 
 (function () {
@@ -150,6 +151,7 @@
       }
     } catch (e) {
       // Guard against unexpected DOM errors so the monitoring loop stays alive.
+      console.warn('[atlassian-redirect] redirectOnce error:', e);
     }
   }
 
