@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.60
+// @version      1.61
 // @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -91,6 +91,13 @@
     'single sign-on required',
     'identity provider',
     'idp redirect required',
+    "you've been signed out",
+    'you have been signed out',
+    'sign in to your account',
+    'continue to log in',
+    'your account has been signed out',
+    'please log in again',
+    'log back in',
   ].join('|'), 'i');
 
   const BROKEN_TITLE_RE = /\b(403|401|forbidden|unauthorized|access denied|error|sign in|log in)\b/i;
@@ -280,6 +287,17 @@
   }
   window.addEventListener('popstate', onNavigation);
   window.addEventListener('hashchange', onNavigation);
+
+  // Chrome 102+ Navigation API — fires for all SPA navigations including
+  // those that don't trigger popstate (e.g. same-document navigations).
+  // Complements the history.pushState/replaceState patch below.
+  try {
+    if (typeof window.navigation !== 'undefined') {
+      window.navigation.addEventListener('navigate', (e) => {
+        if (e.navigationType !== 'reload') onNavigation();
+      });
+    }
+  } catch (_) { /* Navigation API unavailable or restricted */ }
 
   // Re-run when the user returns to an idle tab whose session may have expired
   // while they were away — the retry loop only runs for ~10 s after page load.
