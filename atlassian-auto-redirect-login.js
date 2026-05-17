@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.41
+// @version      1.42
 // @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -51,7 +51,7 @@
   // Definitive auth-required signals — any one matching alone justifies a redirect.
   // Pre-compiled as a single RegExp so repeated DOM scans use one engine pass
   // instead of iterating through an array of string includes().
-  const AUTH_RE = /log in to jira to see this work item|you need to log in to jira|log in to confluence|you need to log in to confluence|your session has expired|sign in to continue|you must be logged in|403 forbidden|401 unauthorized|access denied|not authorized|please sign in|session expired|you are not logged in|authentication required/i;
+  const AUTH_RE = /log in to jira to see this work item|you need to log in to jira|log in to confluence|you need to log in to confluence|your session has expired|sign in to continue|you must be logged in|403 forbidden|401 unauthorized|access denied|not authorized|please sign in|session expired|you are not logged in|authentication required|session timed out|login required|you have been logged out|your login session|require.*login|log.*in.*required/i;
 
   const BROKEN_TITLE_RE = /\b(403|401|forbidden|unauthorized|access denied|error|sign in|log in)\b/i;
 
@@ -160,17 +160,15 @@
     redirected = false;
 
     const observeTarget = document.body ?? document.documentElement;
-    if (observeTarget) {
-      observer = new MutationObserver(() => {
-        clearTimeout(debounceHandle);
-        debounceHandle = setTimeout(redirectOnce, MUTATION_DEBOUNCE_MS);
-      });
-      observer.observe(observeTarget, {
-        childList: true,
-        subtree: true,
-        characterData: false,
-      });
-    }
+    observer = new MutationObserver(() => {
+      clearTimeout(debounceHandle);
+      debounceHandle = setTimeout(redirectOnce, MUTATION_DEBOUNCE_MS);
+    });
+    observer.observe(observeTarget, {
+      childList: true,
+      subtree: true,
+      characterData: false,
+    });
 
     redirectOnce();
 
@@ -197,9 +195,13 @@
   // became hidden and visible again within the first 10 s).
   // Debounce to avoid rapid restarts when the user switches tabs quickly.
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && !redirected && !intervalHandle && !isLoggedIn()) {
-      clearTimeout(visibilityDebounce);
-      visibilityDebounce = setTimeout(startRetryLoop, VISIBILITY_DEBOUNCE_MS);
+    try {
+      if (!document.hidden && !redirected && !intervalHandle && !isLoggedIn()) {
+        clearTimeout(visibilityDebounce);
+        visibilityDebounce = setTimeout(startRetryLoop, VISIBILITY_DEBOUNCE_MS);
+      }
+    } catch (e) {
+      console.warn('[atlassian-redirect] visibilitychange error:', e);
     }
   });
 
