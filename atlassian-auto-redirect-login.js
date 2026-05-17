@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.68
+// @version      1.69
 // @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -272,10 +272,14 @@
     }
   }
 
-  function startRetryLoop() {
+  function startRetryLoop(resetFailures = false) {
     cleanup();
     redirected = false;
-    redirectFailures = 0;
+    // Only reset the failure counter on genuine navigations (new page context),
+    // not when rescheduled after a failed window.location.replace() call.
+    // Resetting on every call would defeat MAX_REDIRECT_FAILURES and allow
+    // infinite retries if the browser blocks the redirect repeatedly.
+    if (resetFailures) redirectFailures = 0;
 
     const observeTarget = document.body ?? document.documentElement;
     observer = new MutationObserver(() => {
@@ -309,7 +313,7 @@
   // same navigation; debounce them together to avoid a redundant second loop.
   function onNavigation() {
     clearTimeout(navDebounce);
-    navDebounce = setTimeout(startRetryLoop, NAV_DEBOUNCE_MS);
+    navDebounce = setTimeout(() => startRetryLoop(true), NAV_DEBOUNCE_MS);
   }
   window.addEventListener('popstate', onNavigation);
   window.addEventListener('hashchange', onNavigation);
@@ -332,7 +336,7 @@
     try {
       if (!document.hidden && !redirected && !intervalHandle && !isLoggedIn() && !isAlreadyRedirecting()) {
         clearTimeout(visibilityDebounce);
-        visibilityDebounce = setTimeout(startRetryLoop, VISIBILITY_DEBOUNCE_MS);
+        visibilityDebounce = setTimeout(() => startRetryLoop(true), VISIBILITY_DEBOUNCE_MS);
       }
     } catch (e) {
       console.warn('[atlassian-redirect] visibilitychange error:', e);
@@ -370,5 +374,5 @@
     // history patching unavailable; popstate/hashchange listeners provide fallback coverage
   }
 
-  startRetryLoop();
+  startRetryLoop(true);
 })();
