@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.45
+// @version      1.46
 // @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -12,6 +12,7 @@
 // @downloadURL  https://raw.githubusercontent.com/kaovilai/tampermonkey-scripts-pub/main/atlassian-auto-redirect-login.js
 // @supportURL   https://github.com/kaovilai/tampermonkey-scripts-pub
 // @homepageURL  https://github.com/kaovilai/tampermonkey-scripts-pub
+// @icon         https://wac-cdn.atlassian.com/assets/img/favicons/atlassian/favicon-32x32.png
 // ==/UserScript==
 
 (function () {
@@ -68,9 +69,12 @@
   const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE']);
   const textNodeFilter = {
     acceptNode(node) {
-      return SKIP_TAGS.has(node.parentElement?.tagName)
-        ? NodeFilter.FILTER_REJECT
-        : NodeFilter.FILTER_ACCEPT;
+      let el = node.parentElement;
+      while (el) {
+        if (SKIP_TAGS.has(el.tagName)) return NodeFilter.FILTER_REJECT;
+        el = el.parentElement;
+      }
+      return NodeFilter.FILTER_ACCEPT;
     },
   };
 
