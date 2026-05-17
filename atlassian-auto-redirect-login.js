@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.72
+// @version      1.73
 // @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -96,9 +96,12 @@
 
   const LOGGED_IN_SELECTOR = [
     '#jira-frontend',                                    // Jira: top nav
-    '[data-testid="navigation-apps-switcher-button"]',  // Jira: app switcher
+    '[data-testid="navigation-apps-switcher-button"]',  // Jira/Confluence: app switcher
+    '[data-testid="atlassian-navigation"]',             // Atlaskit nav (Jira, Confluence, Admin)
+    '[data-testid="navigation-header"]',                // Jira: navigation header
     '#confluence-ui',                                    // Confluence: page frame
     '.ia-nav-header',                                    // Confluence: nav header
+    '[data-testid="confluence-breadcrumbs"]',           // Confluence: page breadcrumbs
     '[data-testid="admin-home"]',                        // Admin: home page
     '#admin-portal',                                     // Admin: portal root
   ].join(', ');
