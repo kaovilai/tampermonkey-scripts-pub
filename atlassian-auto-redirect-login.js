@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.83
+// @version      1.84
 // @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -480,20 +480,19 @@
   try {
     if (typeof window.fetch === 'function' && !window.fetch[PATCH_KEY]) {
       const _originalFetch = window.fetch;
-      const _patchedFetch = function (...args) {
-        return _originalFetch.apply(this, args).then(response => {
-          try {
-            if ((response.status === 401 || response.status === 403)
-              && isAtlassianApiUrl(response.url)
-              && !isLoggedIn()
-              && !redirected) {
-              setTimeout(redirectOnce, 0);
-            }
-          } catch (e) {
-            console.warn('[atlassian-redirect] fetch intercept error:', e);
+      const _patchedFetch = async function (...args) {
+        const response = await _originalFetch.apply(this, args);
+        try {
+          if ((response.status === 401 || response.status === 403)
+            && isAtlassianApiUrl(response.url)
+            && !isLoggedIn()
+            && !redirected) {
+            setTimeout(redirectOnce, 0);
           }
-          return response;
-        });
+        } catch (e) {
+          console.warn('[atlassian-redirect] fetch intercept error:', e);
+        }
+        return response;
       };
       _patchedFetch[PATCH_KEY] = true;
       window.fetch = _patchedFetch;
