@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.38
+// @version      1.39
 // @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -58,13 +58,26 @@
   // scanning the full DOM text of large Atlassian pages is unnecessarily slow.
   const MAX_TEXT_SCAN = 5000;
 
+  // Walk text nodes with early exit once we've collected MAX_TEXT_SCAN chars,
+  // avoiding the cost of building the full textContent string for large subtrees.
+  function collectText(root, limit) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let text = '';
+    let node;
+    while ((node = walker.nextNode()) !== null) {
+      text += node.nodeValue;
+      if (text.length >= limit) return text.slice(0, limit);
+    }
+    return text;
+  }
+
   function pageLooksBroken() {
     if (BROKEN_TITLE_RE.test(document.title)) return true;
 
     // Prefer scanning the main content area — Atlassian's nav HTML can push
     // error messages beyond MAX_TEXT_SCAN when scanning the full body.
     const scanTarget = document.querySelector('main, [role="main"], #main-content, #content') ?? document.body;
-    return AUTH_RE.test(scanTarget.textContent.slice(0, MAX_TEXT_SCAN));
+    return AUTH_RE.test(collectText(scanTarget, MAX_TEXT_SCAN));
   }
 
   function buildLoginUrl() {
@@ -111,28 +124,32 @@
   }
 
   function redirectOnce() {
-    if (redirected) return;
-    const loggedIn = isLoggedIn();
-    if (loggedIn) {
-      cleanup();
-      return;
-    }
-    if (!pageLooksBroken()) return;
-
-    const target = buildLoginUrl();
-
-    if (target && window.location.href !== target) {
-      redirected = true;
-      cleanup();
-      try {
-        window.location.replace(target);
-      } catch (e) {
-        // Replace failed (e.g. blocked by browser policy); restore state and
-        // reschedule monitoring — cleanup() already ran, so without this the
-        // script would be silently dead with no active observer or interval.
-        redirected = false;
-        setTimeout(startRetryLoop, 500);
+    try {
+      if (redirected) return;
+      const loggedIn = isLoggedIn();
+      if (loggedIn) {
+        cleanup();
+        return;
       }
+      if (!pageLooksBroken()) return;
+
+      const target = buildLoginUrl();
+
+      if (target && window.location.href !== target) {
+        redirected = true;
+        cleanup();
+        try {
+          window.location.replace(target);
+        } catch (e) {
+          // Replace failed (e.g. blocked by browser policy); restore state and
+          // reschedule monitoring — cleanup() already ran, so without this the
+          // script would be silently dead with no active observer or interval.
+          redirected = false;
+          setTimeout(startRetryLoop, 500);
+        }
+      }
+    } catch (e) {
+      // Guard against unexpected DOM errors so the monitoring loop stays alive.
     }
   }
 
