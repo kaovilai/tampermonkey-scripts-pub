@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.12
+// @version      1.13
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
 // @run-at       document-idle
@@ -60,9 +60,13 @@
     'if this keeps happening',
   ];
 
+  // Limit scan to first 5 000 chars — error banners appear near the top and
+  // scanning the full DOM text of large Atlassian pages is unnecessarily slow.
+  const MAX_TEXT_SCAN = 5000;
+
   function pageLooksBroken() {
     if (isLoggedIn()) return false;
-    const text = (document.body?.textContent || '').toLowerCase();
+    const text = (document.body?.textContent || '').slice(0, MAX_TEXT_SCAN).toLowerCase();
     return BROKEN_PAGE_PHRASES.some(phrase => text.includes(phrase));
   }
 
@@ -116,6 +120,7 @@
     observer.observe(observeTarget, {
       childList: true,
       subtree: true,
+      characterData: false, // skip text-only mutations — structural changes are sufficient
     });
   }
 
