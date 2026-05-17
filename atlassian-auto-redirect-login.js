@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.55
+// @version      1.56
 // @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -52,7 +52,35 @@
   // Definitive auth-required signals — any one matching alone justifies a redirect.
   // Pre-compiled as a single RegExp so repeated DOM scans use one engine pass
   // instead of iterating through an array of string includes().
-  const AUTH_RE = /log in to jira to see this work item|you need to log in to jira|log in to confluence|you need to log in to confluence|your session has expired|sign in to continue|you must be logged in|403 forbidden|401 unauthorized|access denied|not authorized|please sign in|session expired|you are not logged in|authentication required|session timed out|login required|you have been logged out|your login session|login is required|requires login|saml authentication required|sso login required|single sign-on required|identity provider|idp redirect required|redirecting to login/i;
+  const AUTH_RE = new RegExp([
+    'log in to jira to see this work item',
+    'you need to log in to jira',
+    'log in to confluence',
+    'you need to log in to confluence',
+    'your session has expired',
+    'sign in to continue',
+    'you must be logged in',
+    '403 forbidden',
+    '401 unauthorized',
+    'access denied',
+    'not authorized',
+    'please sign in',
+    'session expired',
+    'you are not logged in',
+    'authentication required',
+    'session timed out',
+    'login required',
+    'you have been logged out',
+    'your login session',
+    'login is required',
+    'requires login',
+    'saml authentication required',
+    'sso login required',
+    'single sign-on required',
+    'identity provider',
+    'idp redirect required',
+    'redirecting to login',
+  ].join('|'), 'i');
 
   const BROKEN_TITLE_RE = /\b(403|401|forbidden|unauthorized|access denied|error|sign in|log in)\b/i;
 
@@ -69,7 +97,7 @@
   const textNodeFilter = {
     acceptNode(node) {
       return node.parentElement?.closest('script, style, noscript, template')
-        ? NodeFilter.FILTER_REJECT
+        ? NodeFilter.FILTER_SKIP
         : NodeFilter.FILTER_ACCEPT;
     },
   };
