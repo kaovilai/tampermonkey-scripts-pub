@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.11
+// @version      1.12
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
 // @run-at       document-idle
@@ -45,7 +45,17 @@
   }
 
   const BROKEN_PAGE_PHRASES = [
+    // Jira auth prompts
     'log in to jira to see this work item',
+    'you need to log in to jira',
+    // Confluence auth prompts
+    'log in to confluence',
+    'you need to log in to confluence',
+    // Generic Atlassian session/auth
+    'your session has expired',
+    'sign in to continue',
+    'you must be logged in',
+    // Generic error pages
     'something went wrong',
     'if this keeps happening',
   ];
