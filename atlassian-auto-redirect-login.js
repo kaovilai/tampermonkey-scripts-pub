@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.9
+// @version      2.10
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -212,7 +212,9 @@
   // Using SHOW_TEXT | SHOW_ELEMENT lets the filter see element nodes so it can
   // prune whole subtrees; FILTER_SKIP on other elements means "don't yield this
   // node but do descend", while FILTER_REJECT means "skip this subtree entirely".
-  const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE']);
+  // SVG and MATH are excluded to avoid traversing large inline vector/formula
+  // subtrees that can never contain auth error text.
+  const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE', 'SVG', 'MATH']);
   const textNodeFilter = {
     acceptNode(node) {
       if (node.nodeType !== Node.TEXT_NODE) {
@@ -340,6 +342,7 @@
   // collapse into a single burst rather than piling up.
   let apiRetryHandle = null;
   function scheduleRetryAfterApiError() {
+    if (redirected) return;
     clearTimeout(apiRetryHandle);
     let i = 0;
     function next() {
@@ -455,7 +458,7 @@
           if (redirectFailures < MAX_REDIRECT_FAILURES) {
             setTimeout(() => startRetryLoop(false), 500);
           } else {
-            console.warn(`${LOG_PREFIX} Redirect failed repeatedly, giving up.`);
+            console.warn(`${LOG_PREFIX} Redirect failed repeatedly, giving up.`, e);
           }
         }
       }
