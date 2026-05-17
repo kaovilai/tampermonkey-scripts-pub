@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.89
+// @version      1.90
 // @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -336,7 +336,12 @@
       const target = buildLoginUrl();
 
       if (!target) {
+        // The current URL is not a safe Atlassian product URL (e.g. the page
+        // navigated away or an excluded subdomain slipped through). There is
+        // nothing to redirect to, so stop all monitoring to avoid running the
+        // MutationObserver and polling interval indefinitely.
         console.warn(`${LOG_PREFIX} buildLoginUrl() returned null for broken-looking page:`, window.location.href);
+        cleanup();
         return;
       }
       if (window.location.href !== target) {
