@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.86
+// @version      1.87
 // @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -155,7 +155,6 @@
     'saml authentication required',
     'sso login required',
     'single sign-on required',
-    'identity provider',
     'idp redirect required',
     "you've been signed out",
     'you have been signed out',
