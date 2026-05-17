@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.77
+// @version      1.78
 // @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -152,12 +152,16 @@
     'this page requires you to log in',
     'verify your identity',
     'reauthenticate to continue',
+    'token expired',
+    'your token has expired',
+    'invalid session',
+    'your session is invalid',
   ].map(escapeRegExp).join('|'), 'i');
 
   // "error" is intentionally excluded — it is too generic and would cause false-positive
   // redirects on non-auth error pages (e.g. 500 pages) if the logged-in DOM selectors
   // ever fail to match. The remaining terms are auth/access-specific.
-  const BROKEN_TITLE_RE = /\b(403|401|forbidden|unauthorized|access denied|sign in|log in)\b/i;
+  const BROKEN_TITLE_RE = /\b(403|401|forbidden|unauthorized|access denied|sign in|log in|session expired)\b/i;
 
   // Limit scan to first 5 000 chars — error banners appear near the top and
   // scanning the full DOM text of large Atlassian pages is unnecessarily slow.
