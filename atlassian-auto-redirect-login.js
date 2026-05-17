@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.37
+// @version      1.38
 // @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -64,7 +64,7 @@
     // Prefer scanning the main content area — Atlassian's nav HTML can push
     // error messages beyond MAX_TEXT_SCAN when scanning the full body.
     const scanTarget = document.querySelector('main, [role="main"], #main-content, #content') ?? document.body;
-    return AUTH_RE.test((scanTarget?.textContent ?? '').slice(0, MAX_TEXT_SCAN));
+    return AUTH_RE.test(scanTarget.textContent.slice(0, MAX_TEXT_SCAN));
   }
 
   function buildLoginUrl() {
@@ -78,6 +78,12 @@
 
     return url.toString();
   }
+
+  const MUTATION_DEBOUNCE_MS = 150;  // DOM mutation → redirect check delay
+  const POLL_INTERVAL_MS = 1000;     // polling interval after page load
+  const POLL_MAX_TRIES = 10;         // stop polling after this many ticks (~10 s)
+  const NAV_DEBOUNCE_MS = 100;       // SPA navigation → retry loop delay
+  const VISIBILITY_DEBOUNCE_MS = 200; // tab visibility restore → retry loop delay
 
   let debounceHandle = null;
   let observer;
@@ -138,7 +144,7 @@
     if (observeTarget) {
       observer = new MutationObserver(() => {
         clearTimeout(debounceHandle);
-        debounceHandle = setTimeout(redirectOnce, 150);
+        debounceHandle = setTimeout(redirectOnce, MUTATION_DEBOUNCE_MS);
       });
       observer.observe(observeTarget, {
         childList: true,
@@ -153,16 +159,15 @@
     intervalHandle = setInterval(() => {
       tries += 1;
       redirectOnce();
-      if (tries >= 10) stopPolling();
-    }, 1000);
+      if (tries >= POLL_MAX_TRIES) stopPolling();
+    }, POLL_INTERVAL_MS);
   }
 
   // Re-run on SPA navigation. hashchange and popstate can both fire for the
   // same navigation; debounce them together to avoid a redundant second loop.
   function onNavigation() {
     clearTimeout(navDebounce);
-    // 100 ms lets the SPA finish rendering the new route before we scan.
-    navDebounce = setTimeout(startRetryLoop, 100);
+    navDebounce = setTimeout(startRetryLoop, NAV_DEBOUNCE_MS);
   }
   window.addEventListener('popstate', onNavigation);
   window.addEventListener('hashchange', onNavigation);
@@ -175,7 +180,7 @@
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden && !redirected && !intervalHandle) {
       clearTimeout(visibilityDebounce);
-      visibilityDebounce = setTimeout(startRetryLoop, 200);
+      visibilityDebounce = setTimeout(startRetryLoop, VISIBILITY_DEBOUNCE_MS);
     }
   });
 
