@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.44
+// @version      1.45
 // @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -63,7 +63,9 @@
   // avoiding the cost of building the full textContent string for large subtrees.
   // Excludes <script> and <style> nodes to prevent false positives from inline
   // JS/CSS that may contain auth-related strings (e.g. 'loginRequired').
-  const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT']);
+  // TEMPLATE contents are inert (not rendered) but still contain text nodes —
+  // including them would produce false-positive auth-string matches.
+  const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE']);
   const textNodeFilter = {
     acceptNode(node) {
       return SKIP_TAGS.has(node.parentElement?.tagName)
