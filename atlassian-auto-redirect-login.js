@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.88
+// @version      1.89
 // @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -41,6 +41,7 @@
 
   const LOGIN_BASE = 'https://id.atlassian.com/login';
   const AUTH_STATUS_CODES = new Set([401, 403]);
+  const LOG_PREFIX = '[atlassian-redirect]';
 
   function escapeRegExp(s) {
     return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -335,7 +336,7 @@
       const target = buildLoginUrl();
 
       if (!target) {
-        console.warn('[atlassian-redirect] buildLoginUrl() returned null for broken-looking page:', window.location.href);
+        console.warn(`${LOG_PREFIX} buildLoginUrl() returned null for broken-looking page:`, window.location.href);
         return;
       }
       if (window.location.href !== target) {
@@ -352,13 +353,13 @@
           if (redirectFailures < MAX_REDIRECT_FAILURES) {
             setTimeout(startRetryLoop, 500);
           } else {
-            console.warn('[atlassian-redirect] Redirect failed repeatedly, giving up.');
+            console.warn(`${LOG_PREFIX} Redirect failed repeatedly, giving up.`);
           }
         }
       }
     } catch (e) {
       // Guard against unexpected DOM errors so the monitoring loop stays alive.
-      console.warn('[atlassian-redirect] redirectOnce error:', e);
+      console.warn(`${LOG_PREFIX} redirectOnce error:`, e);
     }
   }
 
@@ -377,7 +378,7 @@
         clearTimeout(debounceHandle);
         debounceHandle = setTimeout(redirectOnce, MUTATION_DEBOUNCE_MS);
       } catch (e) {
-        console.warn('[atlassian-redirect] MutationObserver callback error:', e);
+        console.warn(`${LOG_PREFIX} MutationObserver callback error:`, e);
       }
     });
     // characterData is intentionally omitted: auth error messages are injected
@@ -436,7 +437,7 @@
         }
       }
     } catch (e) {
-      console.warn('[atlassian-redirect] visibilitychange error:', e);
+      console.warn(`${LOG_PREFIX} visibilitychange error:`, e);
     }
   });
 
@@ -490,7 +491,7 @@
             setTimeout(redirectOnce, 0);
           }
         } catch (e) {
-          console.warn('[atlassian-redirect] fetch intercept error:', e);
+          console.warn(`${LOG_PREFIX} fetch intercept error:`, e);
         }
         return response;
       };
@@ -512,7 +513,7 @@
           this[PATCH_KEY] = true;
           this.addEventListener('readystatechange', function () {
             try {
-              if (this.readyState === 4
+              if (this.readyState === XMLHttpRequest.DONE
                 && AUTH_STATUS_CODES.has(this.status)
                 && isAtlassianApiUrl(this.responseURL)
                 && !isLoggedIn()
@@ -520,7 +521,7 @@
                 setTimeout(redirectOnce, 0);
               }
             } catch (e) {
-              console.warn('[atlassian-redirect] XHR intercept error:', e);
+              console.warn(`${LOG_PREFIX} XHR intercept error:`, e);
             }
           });
         }
