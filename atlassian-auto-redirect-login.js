@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.22
+// @version      1.23
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
 // @run-at       document-idle
@@ -69,8 +69,7 @@
   // scanning the full DOM text of large Atlassian pages is unnecessarily slow.
   const MAX_TEXT_SCAN = 5000;
 
-  function pageLooksBroken(loggedIn) {
-    if (loggedIn) return false;
+  function pageLooksBroken() {
     const titleBroken = BROKEN_TITLE_RE.test(document.title);
     const text = (document.body?.textContent || '').slice(0, MAX_TEXT_SCAN).toLowerCase();
     if (titleBroken) return true;
@@ -110,7 +109,7 @@
       cleanup();
       return;
     }
-    if (!pageLooksBroken(loggedIn)) return;
+    if (!pageLooksBroken()) return;
 
     const target = buildLoginUrl();
 
@@ -148,15 +147,23 @@
     }, 1000);
   }
 
-  // Re-run on SPA navigation (popstate / hashchange / pushState / replaceState)
-  window.addEventListener('popstate', startRetryLoop);
-  window.addEventListener('hashchange', startRetryLoop);
+  // Re-run on SPA navigation. hashchange and popstate can both fire for the
+  // same navigation; debounce them together to avoid a redundant second loop.
+  let navDebounce = null;
+  function onNavigation() {
+    clearTimeout(navDebounce);
+    navDebounce = setTimeout(startRetryLoop, 0);
+  }
+  window.addEventListener('popstate', onNavigation);
+  window.addEventListener('hashchange', onNavigation);
 
   // Intercept history.pushState and history.replaceState for SPA navigations
   // that don't fire popstate (e.g. Jira's React router transitions).
   // Only restart when the URL actually changes to avoid redundant loops
   // caused by state-only updates (e.g. replaceState with the same URL).
+  // Guard against double-patching if the script is somehow injected twice.
   ['pushState', 'replaceState'].forEach(method => {
+    if (history[method].__atlassianRedirectPatched) return;
     const original = history[method];
     history[method] = function (...args) {
       const prevUrl = window.location.href;
@@ -164,6 +171,7 @@
       if (window.location.href !== prevUrl) startRetryLoop();
       return result;
     };
+    history[method].__atlassianRedirectPatched = true;
   });
 
   startRetryLoop();
