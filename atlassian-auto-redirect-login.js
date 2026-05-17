@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.82
+// @version      1.83
 // @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -482,11 +482,15 @@
       const _originalFetch = window.fetch;
       const _patchedFetch = function (...args) {
         return _originalFetch.apply(this, args).then(response => {
-          if ((response.status === 401 || response.status === 403)
-            && isAtlassianApiUrl(response.url)
-            && !isLoggedIn()
-            && !redirected) {
-            setTimeout(redirectOnce, 0);
+          try {
+            if ((response.status === 401 || response.status === 403)
+              && isAtlassianApiUrl(response.url)
+              && !isLoggedIn()
+              && !redirected) {
+              setTimeout(redirectOnce, 0);
+            }
+          } catch (e) {
+            console.warn('[atlassian-redirect] fetch intercept error:', e);
           }
           return response;
         });
@@ -503,12 +507,16 @@
       const _originalXHROpen = XMLHttpRequest.prototype.open;
       const _patchedXHROpen = function (...args) {
         this.addEventListener('readystatechange', function () {
-          if (this.readyState === 4
-            && (this.status === 401 || this.status === 403)
-            && isAtlassianApiUrl(this.responseURL)
-            && !isLoggedIn()
-            && !redirected) {
-            setTimeout(redirectOnce, 0);
+          try {
+            if (this.readyState === 4
+              && (this.status === 401 || this.status === 403)
+              && isAtlassianApiUrl(this.responseURL)
+              && !isLoggedIn()
+              && !redirected) {
+              setTimeout(redirectOnce, 0);
+            }
+          } catch (e) {
+            console.warn('[atlassian-redirect] XHR intercept error:', e);
           }
         });
         return _originalXHROpen.apply(this, args);
