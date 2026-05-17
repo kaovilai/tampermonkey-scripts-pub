@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.62
+// @version      1.63
 // @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -301,7 +301,7 @@
   try {
     if (typeof window.navigation !== 'undefined') {
       window.navigation.addEventListener('navigate', (e) => {
-        if (e.navigationType !== 'reload') onNavigation();
+        if (e.navigationType !== 'reload' && e.destination?.url !== window.location.href) onNavigation();
       });
     }
   } catch (_) { /* Navigation API unavailable or restricted */ }
@@ -313,7 +313,7 @@
   // Debounce to avoid rapid restarts when the user switches tabs quickly.
   document.addEventListener('visibilitychange', () => {
     try {
-      if (!document.hidden && !redirected && !intervalHandle && !isLoggedIn()) {
+      if (!document.hidden && !redirected && !intervalHandle && !isLoggedIn() && !isAlreadyRedirecting()) {
         clearTimeout(visibilityDebounce);
         visibilityDebounce = setTimeout(startRetryLoop, VISIBILITY_DEBOUNCE_MS);
       }
