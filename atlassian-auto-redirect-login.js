@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.26
+// @version      1.27
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
 // @run-at       document-idle
@@ -57,6 +57,11 @@
     '401 unauthorized',
     'access denied',
     'not authorized',
+    // Additional Atlassian / generic auth prompts
+    'please sign in',
+    'session expired',
+    'you are not logged in',
+    'authentication required',
   ]);
 
   const BROKEN_TITLE_RE = /\b(403|401|forbidden|unauthorized|access denied|error|sign in|log in)\b/i;
@@ -115,7 +120,12 @@
     if (target && window.location.href !== target) {
       redirected = true;
       cleanup();
-      window.location.replace(target);
+      try {
+        window.location.replace(target);
+      } catch (e) {
+        // Replace failed (e.g. blocked by browser policy); allow a retry.
+        redirected = false;
+      }
     }
   }
 
@@ -157,8 +167,13 @@
 
   // Re-run when the user returns to an idle tab whose session may have expired
   // while they were away — the retry loop only runs for ~10 s after page load.
+  // Debounce to avoid rapid restarts when the user switches tabs quickly.
+  let visibilityDebounce = null;
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && !redirected) startRetryLoop();
+    if (!document.hidden && !redirected) {
+      clearTimeout(visibilityDebounce);
+      visibilityDebounce = setTimeout(startRetryLoop, 200);
+    }
   });
 
   // Intercept history.pushState and history.replaceState for SPA navigations
