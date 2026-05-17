@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.78
+// @version      1.79
 // @author       kaovilai
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -224,7 +224,7 @@
     // (e.g. Jira boards with many toast alerts). Auth errors appear in the first
     // few overlays so scanning a bounded subset is sufficient.
     const MAX_OVERLAY_SCAN = 10;
-    const overlays = document.querySelectorAll('[role="alert"], [role="dialog"]');
+    const overlays = document.querySelectorAll('[role="alert"], [role="dialog"], [aria-live="assertive"]');
     const overlayCount = Math.min(overlays.length, MAX_OVERLAY_SCAN);
     for (let i = 0; i < overlayCount; i++) {
       try {
@@ -383,7 +383,7 @@
   // Complements the history.pushState/replaceState patch below.
   try {
     window.navigation?.addEventListener('navigate', (e) => {
-      if (e.navigationType !== 'reload' && e.destination?.url !== window.location.href) onNavigation();
+      if (e.navigationType !== 'reload' && e.destination?.url && e.destination.url !== window.location.href) onNavigation();
     });
   } catch (_) { /* Navigation API unavailable or restricted */ }
 
