@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      1.21
+// @version      1.22
 // @description  On Atlassian Cloud error pages, redirect to id.atlassian.com/login with dynamic continue URL
 // @match        https://*.atlassian.net/*
 // @run-at       document-idle
@@ -154,11 +154,14 @@
 
   // Intercept history.pushState and history.replaceState for SPA navigations
   // that don't fire popstate (e.g. Jira's React router transitions).
+  // Only restart when the URL actually changes to avoid redundant loops
+  // caused by state-only updates (e.g. replaceState with the same URL).
   ['pushState', 'replaceState'].forEach(method => {
     const original = history[method];
     history[method] = function (...args) {
+      const prevUrl = window.location.href;
       const result = original.apply(this, args);
-      startRetryLoop();
+      if (window.location.href !== prevUrl) startRetryLoop();
       return result;
     };
   });
