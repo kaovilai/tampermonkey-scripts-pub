@@ -137,6 +137,17 @@
     return !!document.querySelector(LOGGED_IN_SELECTOR);
   }
 
+  const OVERLAY_SELECTOR = [
+    '[role="alert"]',
+    '[role="alertdialog"]',
+    '[role="dialog"]',
+    '[aria-live="assertive"]',
+  ].join(', ');
+
+  const MAIN_CONTENT_SELECTOR = 'main, [role="main"], #main-content, #content';
+
+  const MAX_OVERLAY_SCAN = 10;
+
   // Definitive auth-required signals — any one matching alone justifies a redirect.
   // Pre-compiled as a single RegExp so repeated DOM scans use one engine pass
   // instead of iterating through an array of string includes().
@@ -338,8 +349,7 @@
     // Cap at MAX_OVERLAY_SCAN to avoid slow iteration on notification-heavy pages
     // (e.g. Jira boards with many toast alerts). Auth errors appear in the first
     // few overlays so scanning a bounded subset is sufficient.
-    const MAX_OVERLAY_SCAN = 10;
-    const overlays = document.querySelectorAll('[role="alert"], [role="alertdialog"], [role="dialog"], [aria-live="assertive"]');
+    const overlays = document.querySelectorAll(OVERLAY_SELECTOR);
     const overlayCount = Math.min(overlays.length, MAX_OVERLAY_SCAN);
     for (let i = 0; i < overlayCount; i++) {
       try {
@@ -351,7 +361,7 @@
     // error messages beyond MAX_TEXT_SCAN when scanning the full body.
     try {
       const mainTarget =
-        document.querySelector('main, [role="main"], #main-content, #content') ??
+        document.querySelector(MAIN_CONTENT_SELECTOR) ??
         document.body ??
         document.documentElement;
       if (AUTH_RE.test(normalizeText(collectText(mainTarget, MAX_TEXT_SCAN)))) return 'auth keyword in main content';
