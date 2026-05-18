@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.29
+// @version      2.30
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -678,6 +678,19 @@
       }
     } catch (e) {
       console.warn(`${LOG_PREFIX} online event error:`, e);
+    }
+  });
+
+  // Stop polling while offline to avoid wasteful no-op redirectOnce() ticks.
+  // The 'online' handler above restarts monitoring once connectivity returns,
+  // so no detection window is lost. The MutationObserver is intentionally kept
+  // alive so that DOM changes queued during the offline period are still seen
+  // once the network comes back; only the periodic polling interval is paused.
+  window.addEventListener('offline', () => {
+    try {
+      stopPolling();
+    } catch (e) {
+      console.warn(`${LOG_PREFIX} offline event error:`, e);
     }
   });
 
