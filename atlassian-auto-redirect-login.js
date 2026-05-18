@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.19
+// @version      2.20
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -103,6 +103,10 @@
       const { protocol, hostname, pathname } = new URL(url, window.location.href);
       if (protocol !== 'https:') return false;
       if (!hostname.endsWith('.atlassian.net') && !hostname.endsWith('.atlassian.com')) return false;
+      // Exclude non-product subdomains (mirrors EXCLUDED_HOSTNAMES) so that a
+      // 401/403 from e.g. id.atlassian.com or api.atlassian.com doesn't trigger
+      // a product-page login redirect.
+      if (EXCLUDED_HOSTNAMES.has(hostname)) return false;
       return pathname.startsWith('/rest/')
         || pathname.startsWith('/wiki/rest/')
         || pathname.startsWith('/graphql')
@@ -175,6 +179,11 @@
     'you need to be logged in',
     'not logged in',
     'login to continue',
+    'requires authentication',
+    'authentication failed',
+    'your credentials have expired',
+    'credential expired',
+    'login',
   ].map(escapeRegExp).join('|'), 'i');
 
   // Use Navigation Timing API to detect HTTP 401/403 responses directly.
@@ -198,7 +207,7 @@
   // "error" is intentionally excluded — it is too generic and would cause false-positive
   // redirects on non-auth error pages (e.g. 500 pages) if the logged-in DOM selectors
   // ever fail to match. The remaining terms are auth/access-specific.
-  const BROKEN_TITLE_RE = /\b(403|401|forbidden|unauthorized|access denied|sign in|log in|session expired|authentication required|session timed out)\b/i;
+  const BROKEN_TITLE_RE = /\b(403|401|forbidden|unauthorized|access denied|sign in|log in|login|session expired|authentication required|session timed out)\b/i;
 
   // Limit scan to first 5 000 chars — error banners appear near the top and
   // scanning the full DOM text of large Atlassian pages is unnecessarily slow.
