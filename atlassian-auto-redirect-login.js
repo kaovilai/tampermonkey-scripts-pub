@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.30
+// @version      2.31
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -152,8 +152,10 @@
     'not authorized',
     'please sign in',
     'session expired',
+    'session has expired',
     'authentication required',
     'session timed out',
+    'session has timed out',
     'login required',
     'you have been logged out',
     'your login session',
@@ -175,6 +177,7 @@
     'reauthenticate to continue',
     're-authenticate',
     'token expired',
+    'token has expired',
     'invalid session',
     'your session is invalid',
     'session no longer active',
