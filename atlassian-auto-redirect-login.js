@@ -291,9 +291,18 @@
         // across sibling elements (e.g. <strong>Sign in</strong> to continue)
         // are still matchable by AUTH_RE. normalizeText() will collapse any
         // double-spaces produced by nodes that already end/start with whitespace.
-        if (text.length > 0) text += ' ';
-        text += node.nodeValue;
-        if (text.length >= limit) return text.slice(0, limit);
+        if (text.length > 0) {
+          text += ' ';
+          // If adding the space alone hits the limit, we're done.
+          if (text.length >= limit) return text.slice(0, limit);
+        }
+        const value = node.nodeValue;
+        const remaining = limit - text.length;
+        // Avoid creating a large temporary string when a single text node would
+        // push past the limit — slice node.nodeValue directly instead of
+        // concatenating and then slicing the combined string.
+        if (value.length >= remaining) return text + value.slice(0, remaining);
+        text += value;
       }
     } catch (_) {
       // TreeWalker throws InvalidStateError if the DOM tree is mutated during
