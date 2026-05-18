@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.36
+// @version      2.37
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -789,6 +789,10 @@
         }
         return response;
       };
+      try {
+        Object.defineProperty(_patchedFetch, 'name', { value: 'fetch' });
+        Object.defineProperty(_patchedFetch, 'length', { value: _originalFetch.length });
+      } catch (_) { /* best-effort */ }
       _patchedFetch[PATCH_KEY] = true;
       window.fetch = _patchedFetch;
     }
@@ -827,6 +831,10 @@
         }
         return _originalXHROpen.apply(this, args);
       };
+      try {
+        Object.defineProperty(_patchedXHROpen, 'name', { value: 'open' });
+        Object.defineProperty(_patchedXHROpen, 'length', { value: _originalXHROpen.length });
+      } catch (_) { /* best-effort */ }
       _patchedXHROpen[PATCH_KEY] = true;
       XMLHttpRequest.prototype.open = _patchedXHROpen;
     }
