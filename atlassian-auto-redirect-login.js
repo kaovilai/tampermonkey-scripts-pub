@@ -185,7 +185,6 @@
     'credential expired',
     'your session has timed out',
     'please sign in again',
-    'permission denied',
     'sign in with sso',
     'log in with sso',
     'saml authentication failed',
@@ -216,7 +215,7 @@
   // "error" is intentionally excluded — it is too generic and would cause false-positive
   // redirects on non-auth error pages (e.g. 500 pages) if the logged-in DOM selectors
   // ever fail to match. The remaining terms are auth/access-specific.
-  const BROKEN_TITLE_RE = /\b(403|401|forbidden|unauthorized|access denied|permission denied|sign in|log in|session expired|authentication required|session timed out)\b/i;
+  const BROKEN_TITLE_RE = /\b(403|401|forbidden|unauthorized|access denied|sign in|log in|session expired|authentication required|session timed out)\b/i;
 
   // Limit scan to first 5 000 chars — error banners appear near the top and
   // scanning the full DOM text of large Atlassian pages is unnecessarily slow.
