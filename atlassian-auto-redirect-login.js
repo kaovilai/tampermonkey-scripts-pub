@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.27
+// @version      2.28
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -391,9 +391,14 @@
   // observed. Uses clearTimeout + a shared handle so rapid successive API
   // errors (common on auth-gated pages that fire multiple concurrent requests)
   // collapse into a single burst rather than piling up.
+  // Skips scheduling when offline or when a native redirect is already in
+  // progress — mirrors the guards in redirectOnce() to avoid spurious
+  // _apiAuthDetected activations that would outlast the current page.
   let apiRetryHandle = null;
   function scheduleRetryAfterApiError() {
     if (redirected) return;
+    if (navigator.onLine === false) return;
+    if (isAlreadyRedirecting()) return;
     _apiAuthDetected = true;
     clearTimeout(apiRetryHandle);
     let i = 0;
@@ -420,28 +425,41 @@
 
   function isRedirectRateLimited() {
     const now = Date.now();
+    // localStorage is shared across all tabs of the same origin, so multiple
+    // open Atlassian tabs that all detect a session expiry are collectively
+    // capped at RATE_LIMIT_MAX redirects — preventing a redirect storm where
+    // N tabs each independently redirect up to RATE_LIMIT_MAX times.
+    let useLocalStorage = false;
+    let timestamps = [];
     try {
-      // localStorage is shared across all tabs of the same origin, so multiple
-      // open Atlassian tabs that all detect a session expiry are collectively
-      // capped at RATE_LIMIT_MAX redirects — preventing a redirect storm where
-      // N tabs each independently redirect up to RATE_LIMIT_MAX times.
       const stored = localStorage.getItem(RATE_LIMIT_KEY);
       let parsed;
       try { parsed = JSON.parse(stored); } catch { parsed = null; }
-      const timestamps = Array.isArray(parsed)
-        ? parsed.filter(t => now - t < RATE_LIMIT_WINDOW_MS)
+      // Validate each entry is a finite number to guard against malformed data.
+      timestamps = Array.isArray(parsed)
+        ? parsed.filter(t => typeof t === 'number' && Number.isFinite(t) && now - t < RATE_LIMIT_WINDOW_MS)
         : [];
-      if (timestamps.length >= RATE_LIMIT_MAX) return true;
-      timestamps.push(now);
-      localStorage.setItem(RATE_LIMIT_KEY, JSON.stringify(timestamps));
-      return false;
+      useLocalStorage = true;
     } catch {
-      // localStorage unavailable — fall back to in-memory rate limiting.
-      _inMemoryRateLimitTimestamps = _inMemoryRateLimitTimestamps.filter(t => now - t < RATE_LIMIT_WINDOW_MS);
-      if (_inMemoryRateLimitTimestamps.length >= RATE_LIMIT_MAX) return true;
-      _inMemoryRateLimitTimestamps.push(now);
-      return false;
+      // localStorage.getItem unavailable — use in-memory state.
+      timestamps = _inMemoryRateLimitTimestamps.filter(t => now - t < RATE_LIMIT_WINDOW_MS);
     }
+
+    if (timestamps.length >= RATE_LIMIT_MAX) return true;
+    timestamps.push(now);
+
+    if (useLocalStorage) {
+      try {
+        localStorage.setItem(RATE_LIMIT_KEY, JSON.stringify(timestamps));
+      } catch {
+        // setItem failed (e.g. quota exceeded) — persist the increment in memory
+        // so the rate limit isn't silently bypassed for the rest of this session.
+        _inMemoryRateLimitTimestamps = timestamps;
+      }
+    } else {
+      _inMemoryRateLimitTimestamps = timestamps;
+    }
+    return false;
   }
 
   let debounceHandle = null;
