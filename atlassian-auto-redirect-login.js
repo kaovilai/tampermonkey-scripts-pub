@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.22
+// @version      2.23
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -243,7 +243,8 @@
       .replace(/[\u2018\u2019\u201B\u02BC]/g, "'")   // curly/modifier single quotes → '
       .replace(/[\u201C\u201D\u201F]/g, '"')           // curly double quotes → "
       .replace(/[\u2013\u2014]/g, '-')                 // en/em dash → hyphen
-      .replace(/[\u00A0\u202F\u2009\u200B]/g, ' ');   // non-breaking/narrow/zero-width spaces → space
+      .replace(/[\u00A0\u202F\u2009\u200B]/g, ' ')    // non-breaking/narrow/zero-width spaces → space
+      .replace(/\s+/g, ' ');                           // collapse whitespace runs so phrase matching works across newlines
   }
 
   function collectText(root, limit) {
@@ -253,6 +254,11 @@
     let node;
     try {
       while ((node = walker.nextNode()) !== null) {
+        // Insert a space between adjacent text nodes so that phrases split
+        // across sibling elements (e.g. <strong>Sign in</strong> to continue)
+        // are still matchable by AUTH_RE. normalizeText() will collapse any
+        // double-spaces produced by nodes that already end/start with whitespace.
+        if (text.length > 0) text += ' ';
         text += node.nodeValue;
         if (text.length >= limit) return text.slice(0, limit);
       }
