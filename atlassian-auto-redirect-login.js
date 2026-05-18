@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.20
+// @version      2.21
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -274,16 +274,18 @@
     return /url=.*(?:login|signin|sso|saml|idp)/i.test(content);
   }
 
+  // Returns a non-empty reason string when the page looks like an auth error,
+  // or null when it does not. Callers can use the reason for console logging.
   function pageLooksBroken() {
     // Fast path: HTTP status from Navigation Timing API (no DOM access needed).
     const httpStatus = getNavigationHttpStatus();
-    if (AUTH_STATUS_CODES.has(httpStatus)) return true;
+    if (AUTH_STATUS_CODES.has(httpStatus)) return `HTTP ${httpStatus} (Navigation Timing)`;
 
     // Fast path: an API 401/403 was observed for this page — treat as broken
     // even when the SPA renders a generic (non-auth-keyword) error UI.
-    if (_apiAuthDetected) return true;
+    if (_apiAuthDetected) return 'API 401/403 intercepted';
 
-    if (BROKEN_TITLE_RE.test(normalizeText(document.title))) return true;
+    if (BROKEN_TITLE_RE.test(normalizeText(document.title))) return `broken title: "${document.title}"`;
 
     // Always scan overlay banners (alert/dialog) independently — an auth error
     // may appear in a modal that lives outside <main>, so checking only the
@@ -296,7 +298,7 @@
     const overlayCount = Math.min(overlays.length, MAX_OVERLAY_SCAN);
     for (let i = 0; i < overlayCount; i++) {
       try {
-        if (AUTH_RE.test(normalizeText(collectText(overlays[i], MAX_TEXT_SCAN)))) return true;
+        if (AUTH_RE.test(normalizeText(collectText(overlays[i], MAX_TEXT_SCAN)))) return `auth keyword in overlay[${i}]`;
       } catch (_) { /* skip malformed overlay element */ }
     }
 
@@ -307,10 +309,10 @@
         document.querySelector('main, [role="main"], #main-content, #content') ??
         document.body ??
         document.documentElement;
-      return AUTH_RE.test(normalizeText(collectText(mainTarget, MAX_TEXT_SCAN)));
-    } catch (_) {
-      return false;
-    }
+      if (AUTH_RE.test(normalizeText(collectText(mainTarget, MAX_TEXT_SCAN)))) return 'auth keyword in main content';
+    } catch (_) { /* ignore DOM errors */ }
+
+    return null;
   }
 
   // Maximum total login-URL length. Values above this risk being silently
@@ -457,7 +459,8 @@
       // unavailability rather than session expiry; redirecting to a login page
       // that cannot load would be misleading and waste a rate-limit slot.
       if (navigator.onLine === false) return;
-      if (!pageLooksBroken()) return;
+      const brokenReason = pageLooksBroken();
+      if (!brokenReason) return;
 
       const target = buildLoginUrl();
 
@@ -479,7 +482,7 @@
         redirected = true;
         cleanup();
         try {
-          console.info(`${LOG_PREFIX} Redirecting to login:`, target);
+          console.info(`${LOG_PREFIX} Redirecting to login (reason: ${brokenReason}):`, target);
           window.location.replace(target);
         } catch (e) {
           // replace() failed (e.g. blocked by browser policy); try assign() as
