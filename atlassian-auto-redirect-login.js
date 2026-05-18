@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.21
+// @version      2.22
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -272,6 +272,12 @@
     const content = meta.getAttribute('content') ?? '';
     // content format: "N; url=https://..." — check for login-related destination
     return /url=.*(?:login|signin|sso|saml|idp)/i.test(content);
+  }
+
+  // Returns true when it is safe to attempt a redirect check.
+  // Centralises the repeated guard used in event handlers to avoid drift.
+  function canAttemptRedirect() {
+    return !redirected && !isLoggedIn() && !isAlreadyRedirecting();
   }
 
   // Returns a non-empty reason string when the page looks like an auth error,
@@ -584,7 +590,7 @@
   // Debounce to avoid rapid restarts when the user switches tabs quickly.
   document.addEventListener('visibilitychange', () => {
     try {
-      if (!document.hidden && !redirected && intervalHandle === null && !isLoggedIn() && !isAlreadyRedirecting()) {
+      if (!document.hidden && canAttemptRedirect() && intervalHandle === null) {
         clearTimeout(visibilityDebounce);
         if (observer === null) {
           // Both polling and observation have stopped — full restart needed.
@@ -608,10 +614,10 @@
   // Debounced to avoid rapid restarts when connectivity toggles quickly.
   window.addEventListener('online', () => {
     try {
-      if (!redirected && !isLoggedIn() && !isAlreadyRedirecting()) {
+      if (canAttemptRedirect()) {
         clearTimeout(onlineDebounce);
         onlineDebounce = setTimeout(() => {
-          if (!redirected && !isLoggedIn() && !isAlreadyRedirecting()) {
+          if (canAttemptRedirect()) {
             if (observer === null) {
               startRetryLoop(false);
             } else {
