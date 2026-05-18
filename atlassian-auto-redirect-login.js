@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.31
+// @version      2.32
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -198,6 +198,13 @@
     'identity provider error',
     'you have been inactive',
     'inactive for too long',
+    'your request could not be completed because it failed security validation',
+    'security validation failed',
+    'xsrf check failed',
+    'xsrf security token missing or incorrect',
+    'csrf check failed',
+    'csrf token invalid',
+    'request validation failed',
   ].map(escapeRegExp).join('|'), 'i');
 
   // Use Navigation Timing API to detect HTTP 401/403 responses directly.
