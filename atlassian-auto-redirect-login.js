@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.23
+// @version      2.24
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -282,8 +282,13 @@
 
   // Returns true when it is safe to attempt a redirect check.
   // Centralises the repeated guard used in event handlers to avoid drift.
+  // Includes an offline check so the retry loop is never started when the
+  // network is unavailable — avoids spinning up a MutationObserver and
+  // setInterval that would immediately no-op in every redirectOnce() tick.
+  // The `online` event handler (below) restarts the loop once connectivity
+  // is restored, so no detection window is lost.
   function canAttemptRedirect() {
-    return !redirected && !isLoggedIn() && !isAlreadyRedirecting();
+    return !redirected && navigator.onLine !== false && !isLoggedIn() && !isAlreadyRedirecting();
   }
 
   // Returns a non-empty reason string when the page looks like an auth error,
