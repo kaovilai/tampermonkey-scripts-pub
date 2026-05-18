@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.28
+// @version      2.29
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -435,14 +435,16 @@
       const stored = localStorage.getItem(RATE_LIMIT_KEY);
       let parsed;
       try { parsed = JSON.parse(stored); } catch { parsed = null; }
-      // Validate each entry is a finite number to guard against malformed data.
+      // Validate each entry is a finite number and not in the future (guards
+      // against clock skew / system-clock jumps that could lock out redirects).
       timestamps = Array.isArray(parsed)
-        ? parsed.filter(t => typeof t === 'number' && Number.isFinite(t) && now - t < RATE_LIMIT_WINDOW_MS)
+        ? parsed.filter(t => typeof t === 'number' && Number.isFinite(t) && t <= now && now - t < RATE_LIMIT_WINDOW_MS)
         : [];
       useLocalStorage = true;
     } catch {
       // localStorage.getItem unavailable — use in-memory state.
-      timestamps = _inMemoryRateLimitTimestamps.filter(t => now - t < RATE_LIMIT_WINDOW_MS);
+      // Guard against future timestamps (clock skew) same as localStorage path.
+      timestamps = _inMemoryRateLimitTimestamps.filter(t => t <= now && now - t < RATE_LIMIT_WINDOW_MS);
     }
 
     if (timestamps.length >= RATE_LIMIT_MAX) return true;
