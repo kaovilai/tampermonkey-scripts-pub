@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.32
+// @version      2.33
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -497,6 +497,20 @@
     debounceHandle = null;
   }
 
+  // Restart a bounded polling burst without reconnecting the MutationObserver.
+  // Used after connectivity/visibility restores when the observer is still active
+  // but polling has already stopped — ensures delayed auth-error UI rendering is
+  // caught within POLL_MAX_TRIES ticks even when no further DOM mutations occur.
+  function restartPollingBurst() {
+    stopPolling();
+    let tries = 0;
+    intervalHandle = setInterval(() => {
+      tries += 1;
+      redirectOnce();
+      if (tries >= POLL_MAX_TRIES) stopPolling();
+    }, POLL_INTERVAL_MS);
+  }
+
   function cleanup() {
     stopPolling();
     if (observer) { observer.disconnect(); observer = null; }
@@ -657,9 +671,15 @@
           // true even if the DOM error UI hasn't rendered yet on tab restore).
           visibilityDebounce = setTimeout(() => startRetryLoop(true, false), VISIBILITY_DEBOUNCE_MS);
         } else {
-          // Observer is still connected — skip teardown/reconnect and just
-          // trigger a redirect check directly to avoid a brief monitoring gap.
-          visibilityDebounce = setTimeout(redirectOnce, VISIBILITY_DEBOUNCE_MS);
+          // Observer is still connected — skip teardown/reconnect. Trigger an
+          // immediate redirect check then restart the polling burst so that auth
+          // errors whose DOM rendering is delayed (e.g. SPA state update pending)
+          // are caught within the next POLL_MAX_TRIES ticks even if no further
+          // DOM mutations occur.
+          visibilityDebounce = setTimeout(() => {
+            redirectOnce();
+            if (!redirected) restartPollingBurst();
+          }, VISIBILITY_DEBOUNCE_MS);
         }
       }
     } catch (e) {
@@ -679,7 +699,11 @@
             if (observer === null) {
               startRetryLoop(false);
             } else {
+              // Observer is active — immediate check plus a polling burst to
+              // catch auth-error UI that renders a few seconds after connectivity
+              // is restored (e.g. background API calls returning 401/403).
               redirectOnce();
+              if (!redirected && intervalHandle === null) restartPollingBurst();
             }
           }
         }, ONLINE_DEBOUNCE_MS);
