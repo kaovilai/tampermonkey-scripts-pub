@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.26
+// @version      2.27
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -52,7 +52,6 @@
     try {
       const parsed = new URL(url);
       if (CONFLUENCE_PATH_RE.test(parsed.pathname)) return 'confluence';
-      if (parsed.hostname === 'admin.atlassian.com') return 'admin';
       return 'jira';
     } catch {
       return 'jira';
@@ -359,11 +358,18 @@
 
     // Include the continue URL only when the total length stays within browser limits.
     // Long Jira filter / board URLs can push the encoded continue value well past the
-    // 2048-char limit; omitting it is preferable to producing a URL that silently fails.
+    // 2048-char limit; fall back to origin+pathname (no query string) before omitting
+    // the continue param entirely, so the user is at least returned to the right page.
     url.searchParams.set('continue', currentUrl);
     if (url.toString().length > MAX_LOGIN_URL_LENGTH) {
-      url.searchParams.delete('continue');
-      console.warn(`${LOG_PREFIX} continue URL too long (${currentUrl.length} chars) — omitting continue param`);
+      const shortUrl = window.location.origin + window.location.pathname;
+      url.searchParams.set('continue', shortUrl);
+      if (url.toString().length > MAX_LOGIN_URL_LENGTH) {
+        url.searchParams.delete('continue');
+        console.warn(`${LOG_PREFIX} continue URL too long (${currentUrl.length} chars) — omitting continue param`);
+      } else {
+        console.info(`${LOG_PREFIX} continue URL truncated to path only (${currentUrl.length} chars original)`);
+      }
     }
 
     return url.toString();
