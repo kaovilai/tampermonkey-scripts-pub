@@ -199,12 +199,10 @@
     'you have been inactive',
     'inactive for too long',
     'your request could not be completed because it failed security validation',
-    'security validation failed',
     'xsrf check failed',
     'xsrf security token missing or incorrect',
     'csrf check failed',
     'csrf token invalid',
-    'request validation failed',
   ].map(escapeRegExp).join('|'), 'i');
 
   // Use Navigation Timing API to detect HTTP 401/403 responses directly.
