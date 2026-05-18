@@ -429,7 +429,15 @@
     clearTimeout(apiRetryHandle);
     let i = 0;
     function next() {
-      if (i >= API_AUTH_RETRY_DELAYS.length) { apiRetryHandle = null; return; }
+      if (i >= API_AUTH_RETRY_DELAYS.length) {
+        apiRetryHandle = null;
+        // All retries exhausted without redirecting — clear the stale flag so
+        // future monitoring cycles (e.g. visibility-change or online-event
+        // restarts) don't treat this transient API 401/403 as evidence of a
+        // broken page and fire spurious redirect attempts.
+        if (!redirected) _apiAuthDetected = false;
+        return;
+      }
       apiRetryHandle = setTimeout(() => { redirectOnce(); i++; if (!redirected) next(); }, API_AUTH_RETRY_DELAYS[i]);
     }
     next();
