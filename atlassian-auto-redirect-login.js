@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.41
+// @version      2.42
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -670,13 +670,7 @@
     });
 
     redirectOnce();
-
-    let tries = 0;
-    intervalHandle = setInterval(() => {
-      tries += 1;
-      redirectOnce();
-      if (tries >= POLL_MAX_TRIES) stopPolling();
-    }, POLL_INTERVAL_MS);
+    restartPollingBurst();
   }
 
   // Re-run on SPA navigation. hashchange and popstate can both fire for the
