@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.39
+// @version      2.40
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -448,6 +448,14 @@
   // guards within the current page session — less durable than localStorage
   // but far safer than failing open with no rate limiting at all.
   let _inMemoryRateLimitTimestamps = [];
+  // Set to false the first time localStorage.setItem (or getItem) throws so
+  // that subsequent calls skip localStorage entirely and accumulate into
+  // _inMemoryRateLimitTimestamps. Without this flag, a persistent setItem
+  // failure causes every call to read the stale (un-incremented) localStorage
+  // value and overwrite _inMemoryRateLimitTimestamps with only the current
+  // call's timestamp — silently resetting the counter on every invocation and
+  // making the rate limit ineffective.
+  let _localStorageAvailable = true;
 
   function isRedirectRateLimited() {
     const now = Date.now();
@@ -455,20 +463,24 @@
     // open Atlassian tabs that all detect a session expiry are collectively
     // capped at RATE_LIMIT_MAX redirects — preventing a redirect storm where
     // N tabs each independently redirect up to RATE_LIMIT_MAX times.
-    let useLocalStorage = false;
     let timestamps = [];
-    try {
-      const stored = localStorage.getItem(RATE_LIMIT_KEY);
-      let parsed;
-      try { parsed = JSON.parse(stored); } catch { parsed = null; }
-      // Validate each entry is a finite number and not in the future (guards
-      // against clock skew / system-clock jumps that could lock out redirects).
-      timestamps = Array.isArray(parsed)
-        ? parsed.filter(t => typeof t === 'number' && Number.isFinite(t) && t <= now && now - t < RATE_LIMIT_WINDOW_MS)
-        : [];
-      useLocalStorage = true;
-    } catch {
-      // localStorage.getItem unavailable — use in-memory state.
+    if (_localStorageAvailable) {
+      try {
+        const stored = localStorage.getItem(RATE_LIMIT_KEY);
+        let parsed;
+        try { parsed = JSON.parse(stored); } catch { parsed = null; }
+        // Validate each entry is a finite number and not in the future (guards
+        // against clock skew / system-clock jumps that could lock out redirects).
+        timestamps = Array.isArray(parsed)
+          ? parsed.filter(t => typeof t === 'number' && Number.isFinite(t) && t <= now && now - t < RATE_LIMIT_WINDOW_MS)
+          : [];
+      } catch {
+        // localStorage.getItem unavailable — switch to in-memory for this session.
+        _localStorageAvailable = false;
+      }
+    }
+
+    if (!_localStorageAvailable) {
       // Guard against future timestamps (clock skew) same as localStorage path.
       timestamps = _inMemoryRateLimitTimestamps.filter(t => t <= now && now - t < RATE_LIMIT_WINDOW_MS);
     }
@@ -476,12 +488,14 @@
     if (timestamps.length >= RATE_LIMIT_MAX) return true;
     timestamps.push(now);
 
-    if (useLocalStorage) {
+    if (_localStorageAvailable) {
       try {
         localStorage.setItem(RATE_LIMIT_KEY, JSON.stringify(timestamps));
       } catch {
-        // setItem failed (e.g. quota exceeded) — persist the increment in memory
-        // so the rate limit isn't silently bypassed for the rest of this session.
+        // setItem failed (e.g. quota exceeded) — switch to in-memory permanently
+        // so future calls accumulate correctly rather than re-reading the stale
+        // localStorage value and discarding the history built up so far.
+        _localStorageAvailable = false;
         _inMemoryRateLimitTimestamps = timestamps;
       }
     } else {
