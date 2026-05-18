@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.24
+// @version      2.25
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -183,6 +183,15 @@
     'authentication failed',
     'your credentials have expired',
     'credential expired',
+    'your session has timed out',
+    'please sign in again',
+    'sign in with sso',
+    'log in with sso',
+    'saml authentication failed',
+    'sso authentication failed',
+    'identity provider error',
+    'you have been inactive',
+    'inactive for too long',
   ].map(escapeRegExp).join('|'), 'i');
 
   // Use Navigation Timing API to detect HTTP 401/403 responses directly.
