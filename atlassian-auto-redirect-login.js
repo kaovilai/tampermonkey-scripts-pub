@@ -292,6 +292,12 @@
     return text;
   }
 
+  // Matches the url= portion of a <meta http-equiv="refresh"> content attribute
+  // (format: "N; url=https://...") when it points to a login-related destination.
+  // Extracted as a module-level constant so the RegExp is compiled once and
+  // reused across all calls to isAlreadyRedirecting() / canAttemptRedirect().
+  const ALREADY_REDIRECTING_RE = /url=[^,]*(?:login|signin|sso|saml|idp)/i;
+
   // If the page already contains a <meta http-equiv="refresh"> pointing to a
   // login URL, Atlassian's native redirect is in progress — don't interfere.
   function isAlreadyRedirecting() {
@@ -299,7 +305,7 @@
     if (!meta) return false;
     const content = meta.getAttribute('content') ?? '';
     // content format: "N; url=https://..." — check for login-related destination
-    return /url=.*(?:login|signin|sso|saml|idp)/i.test(content);
+    return ALREADY_REDIRECTING_RE.test(content);
   }
 
   // Returns true when it is safe to attempt a redirect check.
