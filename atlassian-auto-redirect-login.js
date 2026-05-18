@@ -555,16 +555,24 @@
       // unavailability rather than session expiry; redirecting to a login page
       // that cannot load would be misleading and waste a rate-limit slot.
       if (navigator.onLine === false) return;
+      // Early exit if the current URL is not a safe Atlassian product URL (e.g.
+      // the SPA navigated to an excluded subdomain or a non-HTTPS page). Avoids
+      // the expensive pageLooksBroken() DOM scan when there is no valid redirect
+      // target. buildLoginUrl() performs the same check but only after the scan.
+      if (!isSafeAtlassianUrl(window.location.href)) {
+        cleanup();
+        return;
+      }
       const brokenReason = pageLooksBroken();
       if (!brokenReason) return;
 
       const target = buildLoginUrl();
 
       if (!target) {
-        // The current URL is not a safe Atlassian product URL (e.g. the page
-        // navigated away or an excluded subdomain slipped through). There is
-        // nothing to redirect to, so stop all monitoring to avoid running the
-        // MutationObserver and polling interval indefinitely.
+        // Should not normally be reached after the isSafeAtlassianUrl guard
+        // above, but kept as a defensive fallback in case window.location.href
+        // changes between the guard and buildLoginUrl() (e.g. a race with a
+        // concurrent SPA navigation).
         console.warn(`${LOG_PREFIX} buildLoginUrl() returned null for broken-looking page:`, window.location.href);
         cleanup();
         return;
