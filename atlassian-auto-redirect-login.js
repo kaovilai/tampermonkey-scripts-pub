@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.28
+// @version      2.29
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -218,7 +218,7 @@
   // "error" is intentionally excluded — it is too generic and would cause false-positive
   // redirects on non-auth error pages (e.g. 500 pages) if the logged-in DOM selectors
   // ever fail to match. The remaining terms are auth/access-specific.
-  const BROKEN_TITLE_RE = /\b(403|401|forbidden|unauthorized|access denied|sign in|log in|session expired|authentication required|session timed out)\b/i;
+  const BROKEN_TITLE_RE = /\b(403|401|forbidden|unauthorized|access denied|sign in|sign-in|log in|login|session expired|authentication required|session timed out)\b/i;
 
   // Limit scan to first 5 000 chars — error banners appear near the top and
   // scanning the full DOM text of large Atlassian pages is unnecessarily slow.
