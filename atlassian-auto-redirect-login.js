@@ -670,13 +670,7 @@
     });
 
     redirectOnce();
-
-    let tries = 0;
-    intervalHandle = setInterval(() => {
-      tries += 1;
-      redirectOnce();
-      if (tries >= POLL_MAX_TRIES) stopPolling();
-    }, POLL_INTERVAL_MS);
+    restartPollingBurst();
   }
 
   // Re-run on SPA navigation. hashchange and popstate can both fire for the
