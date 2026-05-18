@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.25
+// @version      2.26
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -83,15 +83,19 @@
     'wac-cdn.atlassian.com',
   ]);
 
+  // Returns true for *.atlassian.net and *.atlassian.com (product tenant domains).
+  // Centralises the repeated suffix check used by isSafeAtlassianUrl and
+  // isAtlassianApiUrl so that adding a new Atlassian TLD only requires one edit.
+  function isAtlassianProductHost(hostname) {
+    return hostname.endsWith('.atlassian.net') || hostname.endsWith('.atlassian.com');
+  }
+
   function isSafeAtlassianUrl(url) {
     try {
       const { protocol, hostname } = new URL(url);
       if (protocol !== 'https:') return false;
       if (EXCLUDED_HOSTNAMES.has(hostname)) return false;
-      // Allow *.atlassian.net and *.atlassian.com (product tenants).
-      if (hostname.endsWith('.atlassian.net')) return true;
-      if (hostname.endsWith('.atlassian.com')) return true;
-      return false;
+      return isAtlassianProductHost(hostname);
     } catch {
       return false;
     }
@@ -102,7 +106,7 @@
     try {
       const { protocol, hostname, pathname } = new URL(url, window.location.href);
       if (protocol !== 'https:') return false;
-      if (!hostname.endsWith('.atlassian.net') && !hostname.endsWith('.atlassian.com')) return false;
+      if (!isAtlassianProductHost(hostname)) return false;
       // Exclude non-product subdomains (mirrors EXCLUDED_HOSTNAMES) so that a
       // 401/403 from e.g. id.atlassian.com or api.atlassian.com doesn't trigger
       // a product-page login redirect.
