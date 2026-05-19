@@ -1,11 +1,12 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.45
+// @version      2.46
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
 // @match        https://*.atlassian.com/*
+// @match        https://bitbucket.org/*
 // @exclude      https://id.atlassian.com/*
 // @exclude      https://community.atlassian.com/*
 // @exclude      https://developer.atlassian.com/*
@@ -25,6 +26,9 @@
 // @exclude      https://events.atlassian.com/*
 // @exclude      https://partners.atlassian.com/*
 // @exclude      https://wac-cdn.atlassian.com/*
+// @exclude      https://bitbucket.org/account/*
+// @exclude      https://bitbucket.org/site/*
+// @exclude      https://bitbucket.org/blog/*
 // @run-at       document-start
 // @noframes
 // @grant        none
@@ -51,6 +55,7 @@
   function detectApplication(url) {
     try {
       const parsed = new URL(url);
+      if (parsed.hostname === 'bitbucket.org') return 'bitbucket';
       if (CONFLUENCE_PATH_RE.test(parsed.pathname)) return 'confluence';
       return 'jira';
     } catch {
@@ -82,19 +87,27 @@
     'wac-cdn.atlassian.com',
   ]);
 
-  // Returns true for *.atlassian.net and *.atlassian.com (product tenant domains).
+  // Bitbucket URL path prefixes that are non-product pages (account settings,
+  // marketing, sign-up flows) and should never trigger a login redirect.
+  const EXCLUDED_BITBUCKET_PATHS = ['/account/', '/site/', '/blog/'];
+
+  // Returns true for *.atlassian.net, *.atlassian.com, and bitbucket.org (product tenant domains).
   // Centralises the repeated suffix check used by isSafeAtlassianUrl and
   // isAtlassianApiUrl so that adding a new Atlassian TLD only requires one edit.
   function isAtlassianProductHost(hostname) {
-    return hostname.endsWith('.atlassian.net') || hostname.endsWith('.atlassian.com');
+    return hostname.endsWith('.atlassian.net') || hostname.endsWith('.atlassian.com') || hostname === 'bitbucket.org';
   }
 
   function isSafeAtlassianUrl(url) {
     try {
-      const { protocol, hostname } = new URL(url);
+      const { protocol, hostname, pathname } = new URL(url);
       if (protocol !== 'https:') return false;
       if (EXCLUDED_HOSTNAMES.has(hostname)) return false;
-      return isAtlassianProductHost(hostname);
+      if (!isAtlassianProductHost(hostname)) return false;
+      // Exclude Bitbucket non-product path prefixes (mirrors @exclude entries).
+      if (hostname === 'bitbucket.org'
+        && EXCLUDED_BITBUCKET_PATHS.some(p => pathname.startsWith(p))) return false;
+      return true;
     } catch {
       return false;
     }
@@ -110,6 +123,12 @@
       // 401/403 from e.g. id.atlassian.com or api.atlassian.com doesn't trigger
       // a product-page login redirect.
       if (EXCLUDED_HOSTNAMES.has(hostname)) return false;
+      if (hostname === 'bitbucket.org') {
+        // Bitbucket REST API v2 paths
+        return pathname.startsWith('/!api/2.0/')
+          || pathname.startsWith('/api/2.0/')
+          || pathname.startsWith('/api/internal/');
+      }
       return pathname.startsWith('/rest/')
         || pathname.startsWith('/wiki/rest/')
         || pathname.startsWith('/wiki/api/')   // Confluence Cloud v2 REST API
@@ -131,6 +150,8 @@
     '[data-testid="confluence-breadcrumbs"]',           // Confluence: page breadcrumbs
     '[data-testid="admin-home"]',                        // Admin: home page
     '#admin-portal',                                     // Admin: portal root
+    '[data-qa="account-nav-button"]',                   // Bitbucket: account nav
+    '[data-testid="workspace-switcher"]',               // Bitbucket: workspace switcher
   ].join(', ');
 
   function isLoggedIn() {
