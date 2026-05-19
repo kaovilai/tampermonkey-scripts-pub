@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.47
+// @version      2.48
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -26,8 +26,11 @@
 // @exclude      https://events.atlassian.com/*
 // @exclude      https://partners.atlassian.com/*
 // @exclude      https://wac-cdn.atlassian.com/*
+// @exclude      https://bitbucket.org/account
 // @exclude      https://bitbucket.org/account/*
+// @exclude      https://bitbucket.org/site
 // @exclude      https://bitbucket.org/site/*
+// @exclude      https://bitbucket.org/blog
 // @exclude      https://bitbucket.org/blog/*
 // @run-at       document-start
 // @noframes
@@ -106,7 +109,7 @@
       if (!isAtlassianProductHost(hostname)) return false;
       // Exclude Bitbucket non-product path prefixes (mirrors @exclude entries).
       if (hostname === 'bitbucket.org'
-        && EXCLUDED_BITBUCKET_PATHS.some(p => pathname.startsWith(p))) return false;
+        && EXCLUDED_BITBUCKET_PATHS.some(p => pathname.startsWith(p) || pathname === p.slice(0, -1))) return false;
       return true;
     } catch {
       return false;
