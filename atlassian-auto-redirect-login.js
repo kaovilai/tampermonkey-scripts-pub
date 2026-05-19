@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.46
+// @version      2.47
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -254,7 +254,7 @@
       const status = performance.getEntriesByType('navigation')[0]?.responseStatus ?? 0;
       _cachedNavHttpStatus = status;
       return status;
-    } catch { return 0; }
+    } catch { _cachedNavHttpStatus = 0; return 0; }
   }
 
   // "error" is intentionally excluded — it is too generic and would cause false-positive
