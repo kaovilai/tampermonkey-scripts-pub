@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.53
+// @version      2.54
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -246,6 +246,9 @@
     'xsrf security token missing or incorrect',
     'csrf check failed',
     'csrf token invalid',
+    'unauthenticated',
+    'not authenticated',
+    'no longer authenticated',
   ].map(escapeRegExp).join('|'), 'i');
 
   // Use Navigation Timing API to detect HTTP 401/403 responses directly.
