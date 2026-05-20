@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.72
+// @version      2.73
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -849,6 +849,30 @@
       stopPolling();
     } catch (e) {
       console.warn(`${LOG_PREFIX} offline event error:`, e);
+    }
+  });
+
+  // Improve back-forward cache (bfcache) eligibility by disconnecting the
+  // MutationObserver and all timers when the page is about to be frozen into
+  // the bfcache (pagehide with persisted=true). Some browsers refuse to cache
+  // pages that hold active observers or intervals; cleaning up here lets the
+  // browser store the page and restore it instantly on back/forward navigation.
+  // On pageshow with persisted=true (bfcache restore) restart monitoring so
+  // that a session that expired while the page was frozen is detected
+  // immediately, rather than waiting for the next visibilitychange cycle.
+  // Pass resetApiAuth=false so any API 401/403 detected before the freeze is
+  // preserved across the restore — the SPA may not re-fire API requests that
+  // were already in flight when the page was hidden.
+  window.addEventListener('pagehide', (e) => {
+    try {
+      if (e.persisted) cleanup();
+    } catch (_) { /* ignore */ }
+  });
+  window.addEventListener('pageshow', (e) => {
+    try {
+      if (e.persisted && canAttemptRedirect()) startRetryLoop(false, false);
+    } catch (e) {
+      console.warn(`${LOG_PREFIX} pageshow error:`, e);
     }
   });
 
