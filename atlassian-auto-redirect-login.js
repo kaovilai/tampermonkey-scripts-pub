@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.52
+// @version      2.53
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -468,16 +468,20 @@
     clearTimeout(apiRetryHandle);
     let i = 0;
     function next() {
+      // Stop immediately after a successful redirect — no point scheduling
+      // further timers that would each hit the `if (redirected) return` guard
+      // inside redirectOnce() and then call next() again needlessly.
+      if (redirected) { apiRetryHandle = null; return; }
       if (i >= API_AUTH_RETRY_DELAYS.length) {
         apiRetryHandle = null;
         // All retries exhausted without redirecting — clear the stale flag so
         // future monitoring cycles (e.g. visibility-change or online-event
         // restarts) don't treat this transient API 401/403 as evidence of a
         // broken page and fire spurious redirect attempts.
-        if (!redirected) _apiAuthDetected = false;
+        _apiAuthDetected = false;
         return;
       }
-      apiRetryHandle = setTimeout(() => { redirectOnce(); i++; if (!redirected) next(); }, API_AUTH_RETRY_DELAYS[i]);
+      apiRetryHandle = setTimeout(() => { redirectOnce(); i++; next(); }, API_AUTH_RETRY_DELAYS[i]);
     }
     next();
   }
