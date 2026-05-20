@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.73
+// @version      2.74
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -59,6 +59,7 @@
     try {
       const parsed = new URL(url);
       if (parsed.hostname === 'bitbucket.org') return 'bitbucket';
+      if (parsed.hostname === 'admin.atlassian.com') return 'admin';
       if (CONFLUENCE_PATH_RE.test(parsed.pathname)) return 'confluence';
       return 'jira';
     } catch {
