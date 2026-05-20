@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.64
+// @version      2.65
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -185,6 +185,7 @@
     'sign in to bitbucket',
     'you need to sign in to bitbucket',
     'you need to sign in',
+    'you need to log in',
     'must sign in',
     'sign in to continue',
     'you must be logged in',
@@ -199,6 +200,7 @@
     'session timed out',
     'session has timed out',
     'login required',
+    'log in required',
     'you have been logged out',
     "you've been logged out",
     'your login session',
