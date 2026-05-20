@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.57
+// @version      2.58
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -901,21 +901,28 @@
 
   // Intercept XMLHttpRequest to detect 401/403 from Atlassian API endpoints in
   // older SPA code paths.
+  // Property key used to track the most-recently-opened URL on each XHR
+  // instance. Updated on every open() call so that the single readystatechange
+  // listener (added on the first open()) always sees the current request URL
+  // even when the same XHR instance is reused for multiple sequential requests
+  // (e.g. connection reuse or explicit XHR recycling in some SPA code paths).
+  const XHR_URL_KEY = '__atlasXhrUrl';
   try {
     if (!XMLHttpRequest.prototype.open[PATCH_KEY]) {
       const _originalXHROpen = XMLHttpRequest.prototype.open;
       const _patchedXHROpen = function (...args) {
+        // Always update the tracked URL so the readystatechange listener sees
+        // the URL for the current send(), not the URL from the first open()
+        // call on this instance. isAtlassianApiUrl() accepts relative URLs
+        // (resolves against window.location), so using the raw args[1] value
+        // is safe here. responseURL can be empty for synchronous requests and
+        // may point to a redirect destination instead of the original URL.
+        this[XHR_URL_KEY] = args[1] ?? '';
         // Guard against listener accumulation: XHR.open() may be called more
         // than once on the same instance (e.g. connection reuse), which would
         // attach a duplicate readystatechange listener on each call.
         if (!this[PATCH_KEY]) {
           this[PATCH_KEY] = true;
-          // Capture the URL at open() time rather than reading responseURL at
-          // completion — responseURL can be empty for synchronous requests and
-          // may point to a redirect destination instead of the original URL.
-          // isAtlassianApiUrl() accepts relative URLs (resolves against window.location),
-          // so using the raw args[1] value is safe here.
-          const requestUrl = args[1] ?? '';
           this.addEventListener('readystatechange', function () {
             try {
               if (this.readyState === XMLHttpRequest.DONE
@@ -924,7 +931,7 @@
                     // page — XHR follows 302 redirects automatically and exposes
                     // the final URL via responseURL.
                     || this.responseURL.startsWith(LOGIN_BASE))
-                && isAtlassianApiUrl(requestUrl || this.responseURL)
+                && isAtlassianApiUrl(this[XHR_URL_KEY] || this.responseURL)
                 && !isLoggedIn()
                 && !redirected) {
                 scheduleRetryAfterApiError();
