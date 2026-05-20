@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.56
+// @version      2.57
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -387,6 +387,13 @@
     if (_apiAuthDetected) return 'API 401/403 intercepted';
 
     if (BROKEN_TITLE_RE.test(normalizeText(document.title))) return `broken title: "${document.title}"`;
+
+    // Skip DOM selector and TreeWalker scans before the document is interactive.
+    // The SPA auth-error UI hasn't rendered yet during loading, so querySelectorAll
+    // and collectText would scan a partial DOM and return nothing useful. The fast
+    // paths above (HTTP status, API intercept, title) already provide early detection
+    // without reading the live DOM tree.
+    if (document.readyState === 'loading') return null;
 
     // Always scan overlay banners (alert/dialog) independently — an auth error
     // may appear in a modal that lives outside <main>, so checking only the
