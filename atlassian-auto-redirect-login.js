@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.58
+// @version      2.59
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -706,6 +706,15 @@
     // infinite retries if the browser blocks the redirect repeatedly.
     if (resetFailures) redirectFailures = 0;
     if (resetApiAuth) _apiAuthDetected = false;
+    // On genuine SPA navigations, reset the cached Navigation Timing HTTP status
+    // to 0 (not null) so getNavigationHttpStatus() does not re-read the stale
+    // performance entry from the original hard page load. Without this, a 401/403
+    // on the initial page load would cause pageLooksBroken() to fire "HTTP 4xx
+    // (Navigation Timing)" for every subsequent SPA page, producing console spam
+    // and spurious redirect attempts (blocked by the rate limiter but still noisy).
+    // 0 is used rather than null because null means "not yet checked" and would
+    // cause getNavigationHttpStatus() to re-read the same stale entry.
+    if (resetFailures) _cachedNavHttpStatus = 0;
 
     const observeTarget = document.body ?? document.documentElement;
     observer = new MutationObserver(() => {
