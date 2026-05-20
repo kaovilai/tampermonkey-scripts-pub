@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.71
+// @version      2.72
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -92,7 +92,9 @@
 
   // Bitbucket URL path prefixes that are non-product pages (account settings,
   // marketing, sign-up flows) and should never trigger a login redirect.
-  const EXCLUDED_BITBUCKET_PATHS = ['/account/', '/site/', '/blog/'];
+  // Pre-compiled as a RegExp so isSafeAtlassianUrl() avoids per-call string
+  // allocations from Array.some() + slice(0,-1) on every Bitbucket URL check.
+  const EXCLUDED_BITBUCKET_PATHS_RE = /^\/(?:account|site|blog)(?:\/|$)/;
 
   // Returns true for *.atlassian.net, *.atlassian.com, and bitbucket.org (product tenant domains).
   // Centralises the repeated suffix check used by isSafeAtlassianUrl and
@@ -109,7 +111,7 @@
       if (!isAtlassianProductHost(hostname)) return false;
       // Exclude Bitbucket non-product path prefixes (mirrors @exclude entries).
       if (hostname === 'bitbucket.org'
-        && EXCLUDED_BITBUCKET_PATHS.some(p => pathname.startsWith(p) || pathname === p.slice(0, -1))) return false;
+        && EXCLUDED_BITBUCKET_PATHS_RE.test(pathname)) return false;
       return true;
     } catch {
       return false;
