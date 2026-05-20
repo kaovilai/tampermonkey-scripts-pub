@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.55
+// @version      2.56
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -946,4 +946,24 @@
   } else {
     startRetryLoop(true);
   }
+
+  // Trigger an extra polling burst once the page is fully loaded (all
+  // sub-resources fetched). Heavy Atlassian SPAs (e.g. Jira Service
+  // Management) can take longer than POLL_MAX_TRIES * POLL_INTERVAL_MS to
+  // render their final state. If the auth-error UI only appears after the
+  // initial 10 s poll window has closed, the MutationObserver would still
+  // catch a DOM-mutation-based render, but for pages that reveal the error
+  // via a CSS class toggle or other non-mutation path, the load event
+  // provides a final safety-net check.
+  // Skipped if the polling interval is still running (page loaded within
+  // the initial 10 s window) or if a redirect already fired.
+  window.addEventListener('load', () => {
+    try {
+      if (canAttemptRedirect() && intervalHandle === null) {
+        restartPollingBurst();
+      }
+    } catch (e) {
+      console.warn(`${LOG_PREFIX} load event error:`, e);
+    }
+  }, { once: true });
 })();
