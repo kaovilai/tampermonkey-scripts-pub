@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.78
+// @version      2.79
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -473,7 +473,9 @@
     // the continue param entirely, so the user is at least returned to the right page.
     url.searchParams.set('continue', currentUrl);
     if (url.toString().length > MAX_LOGIN_URL_LENGTH) {
-      const shortUrl = window.location.origin + window.location.pathname;
+      // Preserve the hash fragment so the user returns to the same anchor
+      // (e.g. a Confluence heading) after logging back in.
+      const shortUrl = window.location.origin + window.location.pathname + window.location.hash;
       url.searchParams.set('continue', shortUrl);
       if (url.toString().length > MAX_LOGIN_URL_LENGTH) {
         url.searchParams.delete('continue');
