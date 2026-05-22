@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      3.5
+// @version      3.6
 // @author       kaovilai
 // @description  Detects auth failures on Atlassian Cloud, Bitbucket, and Trello (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -574,20 +574,25 @@
     // the continue param entirely, so the user is at least returned to the right page.
     // Each candidate is [continueValue, logLabel] where continueValue=null is a
     // sentinel meaning "omit the continue param entirely".
-    const { origin, pathname, hash } = window.location;
+    const { origin, pathname, search, hash } = window.location;
     // Deduplicate consecutive identical URL candidates: when the current URL has no
     // query string, currentUrl === origin+pathname+hash (candidates 1 and 2 are the
-    // same string); when there is also no hash, all three non-null candidates collapse
-    // to origin+pathname. Filtering duplicates avoids a redundant url.toString()
-    // call and searchParams.set() in the fallback loop for these common cases.
+    // same string); when there is also no hash, candidates collapse further to
+    // origin+pathname. Filtering duplicates avoids redundant url.toString() calls
+    // and searchParams.set() in the fallback loop for these common cases.
     const continueUrlCandidates = [
       [currentUrl, null],
+      // Drop the hash first: it encodes a scroll/anchor position (nice-to-have)
+      // while the query string often carries essential view state (filters, board
+      // IDs, comment IDs). Preserving the query string produces a more useful
+      // continue URL when the hash fragment is the source of excess length.
+      [origin + pathname + search, 'path+search, hash omitted'],
       // Preserve the hash fragment so the user returns to the same anchor
-      // (e.g. a Confluence heading) after logging back in.
-      [origin + pathname + hash, 'path+hash'],
-      // Hash alone may be very long (e.g. Confluence #heading=... anchors);
-      // try origin+pathname without hash before giving up entirely.
-      [origin + pathname, 'path, hash omitted'],
+      // (e.g. a Confluence heading) after logging back in, even when the query
+      // string had to be dropped.
+      [origin + pathname + hash, 'path+hash, search omitted'],
+      // Last resort before omitting continue entirely.
+      [origin + pathname, 'path only'],
       [null, null], // sentinel: omit continue param entirely
     ].filter(([c], i, arr) => i === 0 || c === null || c !== arr[i - 1][0]);
     for (const [candidate, label] of continueUrlCandidates) {
