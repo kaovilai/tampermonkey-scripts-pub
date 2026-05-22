@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.92
+// @version      2.93
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -560,19 +560,27 @@
 
     // Include the continue URL only when the total length stays within browser limits.
     // Long Jira filter / board URLs can push the encoded continue value well past the
-    // 2048-char limit; fall back to origin+pathname (no query string) before omitting
+    // 2048-char limit; fall back through progressively shorter forms before omitting
     // the continue param entirely, so the user is at least returned to the right page.
     url.searchParams.set('continue', currentUrl);
     if (url.toString().length > MAX_LOGIN_URL_LENGTH) {
       // Preserve the hash fragment so the user returns to the same anchor
       // (e.g. a Confluence heading) after logging back in.
-      const shortUrl = window.location.origin + window.location.pathname + window.location.hash;
-      url.searchParams.set('continue', shortUrl);
+      const urlWithHash = window.location.origin + window.location.pathname + window.location.hash;
+      url.searchParams.set('continue', urlWithHash);
       if (url.toString().length > MAX_LOGIN_URL_LENGTH) {
-        url.searchParams.delete('continue');
-        console.warn(`${LOG_PREFIX} continue URL too long (${currentUrl.length} chars) — omitting continue param`);
+        // Hash alone may be very long (e.g. Confluence #heading=... anchors);
+        // try origin+pathname without hash before giving up entirely.
+        const urlNoHash = window.location.origin + window.location.pathname;
+        url.searchParams.set('continue', urlNoHash);
+        if (url.toString().length > MAX_LOGIN_URL_LENGTH) {
+          url.searchParams.delete('continue');
+          console.warn(`${LOG_PREFIX} continue URL too long (${currentUrl.length} chars) — omitting continue param`);
+        } else {
+          console.info(`${LOG_PREFIX} continue URL truncated to path, hash omitted (${currentUrl.length} chars original)`);
+        }
       } else {
-        console.info(`${LOG_PREFIX} continue URL truncated to path only (${currentUrl.length} chars original)`);
+        console.info(`${LOG_PREFIX} continue URL truncated to path+hash (${currentUrl.length} chars original)`);
       }
     }
 
