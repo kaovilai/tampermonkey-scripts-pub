@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.99
+// @version      3.0
 // @author       kaovilai
 // @description  Detects auth failures on Atlassian Cloud, Bitbucket, and Trello (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -27,6 +27,8 @@
 // @exclude      https://events.atlassian.com/*
 // @exclude      https://partners.atlassian.com/*
 // @exclude      https://wac-cdn.atlassian.com/*
+// @exclude      https://bitbucket.org/login
+// @exclude      https://bitbucket.org/login/*
 // @exclude      https://bitbucket.org/account
 // @exclude      https://bitbucket.org/account/*
 // @exclude      https://bitbucket.org/site
@@ -49,6 +51,8 @@
 // @exclude      https://bitbucket.org/tour/*
 // @exclude      https://bitbucket.org/solutions
 // @exclude      https://bitbucket.org/solutions/*
+// @exclude      https://trello.com/login
+// @exclude      https://trello.com/login/*
 // @exclude      https://trello.com/about
 // @exclude      https://trello.com/about/*
 // @exclude      https://trello.com/pricing
@@ -144,11 +148,11 @@
   // marketing, sign-up flows) and should never trigger a login redirect.
   // Pre-compiled as a RegExp so isSafeAtlassianUrl() avoids per-call string
   // allocations from Array.some() + slice(0,-1) on every Bitbucket URL check.
-  const EXCLUDED_BITBUCKET_PATHS_RE = /^\/(?:account|site|blog|pricing|features|product|enterprise|signup|try|tour|solutions)(?:\/|$)/;
+  const EXCLUDED_BITBUCKET_PATHS_RE = /^\/(?:login|signin|account|site|blog|pricing|features|product|enterprise|signup|try|tour|solutions)(?:\/|$)/;
 
   // Trello URL path prefixes for non-product (marketing, legal, info) pages
   // that should never trigger a login redirect.
-  const EXCLUDED_TRELLO_PATHS_RE = /^\/(?:about|pricing|enterprise|teams|legal|security|contact|platforms|tour)(?:\/|$)/;
+  const EXCLUDED_TRELLO_PATHS_RE = /^\/(?:login|signin|about|pricing|enterprise|teams|legal|security|contact|platforms|tour)(?:\/|$)/;
 
   // Returns true for *.atlassian.net, *.atlassian.com, bitbucket.org, and trello.com (product tenant domains).
   // Centralises the repeated suffix check used by isSafeAtlassianUrl and
