@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.87
+// @version      2.88
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -177,7 +177,8 @@
         || pathname.startsWith('/wiki/api/')   // Confluence Cloud v2 REST API
         || pathname.startsWith('/graphql')
         || pathname.startsWith('/wiki/graphql')
-        || pathname.startsWith('/gateway/api/');
+        || pathname.startsWith('/gateway/api/')
+        || pathname.startsWith('/gateway/graphql');
     } catch {
       return false;
     }
