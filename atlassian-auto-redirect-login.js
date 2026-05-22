@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.81
+// @version      2.82
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -1002,7 +1002,7 @@
         // (resolves against window.location), so using the raw args[1] value
         // is safe here. responseURL can be empty for synchronous requests and
         // may point to a redirect destination instead of the original URL.
-        this[XHR_URL_KEY] = args[1] ?? '';
+        this[XHR_URL_KEY] = args[1] == null ? '' : String(args[1]);
         // Guard against listener accumulation: XHR.open() may be called more
         // than once on the same instance (e.g. connection reuse), which would
         // attach a duplicate readystatechange listener on each call.
