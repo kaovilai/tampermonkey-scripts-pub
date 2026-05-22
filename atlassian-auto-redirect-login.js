@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      3.2
+// @version      3.3
 // @author       kaovilai
 // @description  Detects auth failures on Atlassian Cloud, Bitbucket, and Trello (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -106,8 +106,7 @@
       if (parsed.hostname === 'bitbucket.org') return 'bitbucket';
       if (parsed.hostname === 'trello.com') return 'trello';
       if (parsed.hostname === 'admin.atlassian.com') return 'admin';
-      if (parsed.hostname === 'team.atlassian.com') return 'atlas';
-      if (parsed.hostname === 'start.atlassian.com') return 'atlas';
+      if (parsed.hostname === 'team.atlassian.com' || parsed.hostname === 'start.atlassian.com') return 'atlas';
       if (CONFLUENCE_PATH_RE.test(parsed.pathname)) return 'confluence';
       if (JSM_PATH_RE.test(parsed.pathname)) return 'jira-servicedesk';
       return 'jira';
@@ -890,12 +889,20 @@
     // new elements. Watching only these two attributes keeps the observation
     // targeted (avoids firing on class/style/data-* churn from React reconciliation)
     // while still catching attribute-toggled modal reveals.
-    observer.observe(observeTarget, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ['aria-hidden', 'hidden'],
-    });
+    try {
+      observer.observe(observeTarget, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['aria-hidden', 'hidden'],
+      });
+    } catch (e) {
+      // observe() can throw if observeTarget is detached or invalid (e.g. a
+      // document that has been fully replaced by a navigation). Fall through so
+      // the polling burst below still runs as a fallback monitoring mechanism.
+      console.warn(`${LOG_PREFIX} MutationObserver.observe() failed:`, e);
+      observer = null;
+    }
 
     redirectOnce();
     restartPollingBurst();
