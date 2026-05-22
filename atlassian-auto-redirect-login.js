@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.85
+// @version      2.86
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -47,6 +47,11 @@
   'use strict';
 
   const LOGIN_BASE = 'https://id.atlassian.com/login';
+  // Broader check used by fetch/XHR interceptors: an API response may be redirected
+  // to any id.atlassian.com or auth.atlassian.com path (not only /login), e.g.
+  // /signin, /saml/sso/, /authorize, etc.  Using a prefix match on the origin
+  // instead of LOGIN_BASE ensures all Atlassian identity-platform redirects are caught.
+  const ATLASSIAN_AUTH_ORIGIN_RE = /^https:\/\/(?:id|auth)\.atlassian\.com\//;
   const AUTH_STATUS_CODES = new Set([401, 403]);
   const LOG_PREFIX = '[atlassian-redirect]';
 
@@ -971,11 +976,12 @@
         const response = await _originalFetch.apply(this, args);
         try {
           if ((AUTH_STATUS_CODES.has(response.status)
-              // Also fire when the server redirected the API request to the login
-              // page (HTTP 302 followed by fetch → 200 on id.atlassian.com/login).
-              // In this case response.status is 200 but response.url reveals the
-              // redirect destination; AUTH_STATUS_CODES wouldn't match on its own.
-              || response.url.startsWith(LOGIN_BASE))
+              // Also fire when the server redirected the API request to an
+              // Atlassian identity-platform URL (HTTP 302 followed by fetch → 200
+              // on id.atlassian.com/* or auth.atlassian.com/*).  response.url
+              // reveals the redirect destination; AUTH_STATUS_CODES alone would
+              // not match the resulting 200 response.
+              || ATLASSIAN_AUTH_ORIGIN_RE.test(response.url))
             && isAtlassianApiUrl(requestUrl || response.url)
             && !isLoggedIn()
             && !redirected) {
@@ -1023,10 +1029,10 @@
             try {
               if (this.readyState === XMLHttpRequest.DONE
                 && (AUTH_STATUS_CODES.has(this.status)
-                    // Also fire when the server redirected the XHR to the login
-                    // page — XHR follows 302 redirects automatically and exposes
-                    // the final URL via responseURL.
-                    || this.responseURL.startsWith(LOGIN_BASE))
+                    // Also fire when the server redirected the XHR to an
+                    // Atlassian identity-platform URL — XHR follows 302 redirects
+                    // automatically and exposes the final URL via responseURL.
+                    || ATLASSIAN_AUTH_ORIGIN_RE.test(this.responseURL))
                 && isAtlassianApiUrl(this[XHR_URL_KEY] || this.responseURL)
                 && !isLoggedIn()
                 && !redirected) {
