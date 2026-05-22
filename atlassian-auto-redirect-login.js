@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      3.8
+// @version      3.9
 // @author       kaovilai
 // @description  Detects auth failures on Atlassian Cloud, Bitbucket, and Trello (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -870,7 +870,12 @@
   // resetApiAuth=false explicitly to reset the failure counter while preserving
   // the _apiAuthDetected flag (e.g. tab visibility restore: we want fresh retries
   // but must not discard an API 401/403 that was detected while the tab was hidden).
-  function startRetryLoop(resetFailures = false, resetApiAuth = resetFailures) {
+  // resetPageContext controls whether to clear the cached Navigation Timing HTTP
+  // status and title. It defaults to resetFailures for backward compatibility, but
+  // can be passed as false independently — e.g. visibilitychange restores need
+  // resetFailures=true (fresh redirect budget) while keeping the cached HTTP status
+  // from the original page load so the Navigation Timing fast path still fires.
+  function startRetryLoop(resetFailures = false, resetApiAuth = resetFailures, resetPageContext = resetFailures) {
     cleanup();
     redirected = false;
     // Only reset the failure counter on genuine navigations (new page context),
@@ -887,7 +892,11 @@
     // and spurious redirect attempts (blocked by the rate limiter but still noisy).
     // 0 is used rather than null because null means "not yet checked" and would
     // cause getNavigationHttpStatus() to re-read the same stale entry.
-    if (resetFailures) { _cachedNavHttpStatus = 0; _lastCheckedTitle = null; }
+    // resetPageContext is intentionally decoupled from resetFailures: e.g.
+    // visibilitychange restores reset the failure counter but must NOT clear the
+    // HTTP status cache — the page hasn't navigated, and zeroing _cachedNavHttpStatus
+    // would permanently disable the Navigation Timing fast path for the current page.
+    if (resetPageContext) { _cachedNavHttpStatus = 0; _lastCheckedTitle = null; }
 
     const observeTarget = document.body ?? document.documentElement;
     observer = new MutationObserver(() => {
@@ -964,7 +973,7 @@
           // Pass resetApiAuth=false to preserve any API 401/403 flag that was
           // set while the tab was hidden (so pageLooksBroken() still returns
           // true even if the DOM error UI hasn't rendered yet on tab restore).
-          visibilityDebounce = setTimeout(() => startRetryLoop(true, false), VISIBILITY_DEBOUNCE_MS);
+          visibilityDebounce = setTimeout(() => startRetryLoop(true, false, false), VISIBILITY_DEBOUNCE_MS);
         } else {
           // Observer is still connected — skip teardown/reconnect. Trigger an
           // immediate redirect check then restart the polling burst so that auth
