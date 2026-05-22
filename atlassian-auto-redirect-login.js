@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      3.6
+// @version      3.7
 // @author       kaovilai
 // @description  Detects auth failures on Atlassian Cloud, Bitbucket, and Trello (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -539,7 +539,14 @@
     const overlayCount = Math.min(overlays.length, MAX_OVERLAY_SCAN);
     for (let i = 0; i < overlayCount; i++) {
       try {
-        if (AUTH_RE.test(normalizeText(collectText(overlays[i], MAX_TEXT_SCAN)))) return `auth keyword in overlay[${i}]`;
+        const overlay = overlays[i];
+        // Skip overlays that are hidden from the user — auth errors only matter
+        // when they are actually visible. Skipping hidden overlays avoids false-
+        // positive redirects from previously-dismissed dialogs (e.g. a "session
+        // expiring" warning that was hidden but left in the DOM) and from
+        // off-screen sheets that SPA frameworks pre-render in a hidden state.
+        if (overlay.getAttribute('aria-hidden') === 'true' || overlay.hasAttribute('hidden')) continue;
+        if (AUTH_RE.test(normalizeText(collectText(overlay, MAX_TEXT_SCAN)))) return `auth keyword in overlay[${i}]`;
       } catch (_) { /* skip malformed overlay element */ }
     }
 
