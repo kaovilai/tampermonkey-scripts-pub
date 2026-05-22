@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.98
+// @version      2.99
 // @author       kaovilai
 // @description  Detects auth failures on Atlassian Cloud, Bitbucket, and Trello (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -432,7 +432,7 @@
       .replace(/[\u2018\u2019\u201B\u02BC]/g, "'")   // curly/modifier single quotes → '
       .replace(/[\u201C\u201D\u201F]/g, '"')           // curly double quotes → "
       .replace(/[\u2010\u2011\u2012\u2013\u2014\u00AD]/g, '-') // Unicode hyphens/dashes → hyphen (includes soft hyphen)
-      .replace(/[\u00A0\u202F\u2009\u200B]/g, ' ')    // non-breaking/narrow/zero-width spaces → space
+      .replace(/[\u00A0\u202F\u2009\u200B\u200C\u200D]/g, ' ')    // non-breaking/narrow/zero-width spaces + ZWNJ/ZWJ → space
       .replace(/\s+/g, ' ');                           // collapse whitespace runs so phrase matching works across newlines
   }
 
