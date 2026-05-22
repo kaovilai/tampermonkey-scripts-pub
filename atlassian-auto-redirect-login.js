@@ -1,13 +1,14 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      3.14
+// @version      3.15
 // @author       kaovilai
-// @description  Detects auth failures on Atlassian Cloud, Bitbucket, and Trello (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
+// @description  Detects auth failures on Atlassian Cloud, Bitbucket, Trello, and Jira Align (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
 // @match        https://*.atlassian.com/*
 // @match        https://bitbucket.org/*
 // @match        https://trello.com/*
+// @match        https://*.jiraalign.com/*
 // @exclude      https://id.atlassian.com/*
 // @exclude      https://community.atlassian.com/*
 // @exclude      https://developer.atlassian.com/*
@@ -113,6 +114,7 @@
       if (parsed.hostname === 'trello.com') return 'trello';
       if (parsed.hostname === 'admin.atlassian.com') return 'admin';
       if (parsed.hostname === 'team.atlassian.com' || parsed.hostname === 'start.atlassian.com') return 'atlas';
+      if (parsed.hostname.endsWith('.jiraalign.com')) return 'jira-align';
       if (CONFLUENCE_PATH_RE.test(parsed.pathname)) return 'confluence';
       if (JSM_PATH_RE.test(parsed.pathname)) return 'jira-servicedesk';
       return 'jira';
@@ -159,13 +161,14 @@
   // that should never trigger a login redirect.
   const EXCLUDED_TRELLO_PATHS_RE = /^\/(?:login|signin|about|pricing|enterprise|teams|legal|security|contact|platforms|tour)(?:\/|$)/;
 
-  // Returns true for *.atlassian.net, *.atlassian.com, bitbucket.org, and trello.com (product tenant domains).
+  // Returns true for *.atlassian.net, *.atlassian.com, bitbucket.org, trello.com, and *.jiraalign.com (product tenant domains).
   // Centralises the repeated suffix check used by isSafeAtlassianUrl and
   // isAtlassianApiUrl so that adding a new Atlassian TLD only requires one edit.
   function isAtlassianProductHost(hostname) {
     return hostname.endsWith('.atlassian.net') || hostname.endsWith('.atlassian.com')
       || hostname === 'bitbucket.org' || hostname === 'api.bitbucket.org'
-      || hostname === 'trello.com' || hostname === 'api.trello.com';
+      || hostname === 'trello.com' || hostname === 'api.trello.com'
+      || hostname.endsWith('.jiraalign.com');
   }
 
   function isSafeAtlassianUrl(url) {
@@ -215,6 +218,11 @@
       if (hostname === 'api.trello.com') {
         // Trello public REST API (cross-origin; SPA may call this directly)
         return pathname.startsWith('/1/');
+      }
+      if (hostname.endsWith('.jiraalign.com')) {
+        // Jira Align REST API paths used by the SPA
+        return pathname.startsWith('/rest/')
+          || pathname.startsWith('/api/');
       }
       // Exclude non-product subdomains (mirrors EXCLUDED_HOSTNAMES) so that a
       // 401/403 from e.g. id.atlassian.com or api.atlassian.com doesn't trigger
