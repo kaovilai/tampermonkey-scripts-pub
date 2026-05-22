@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.82
+// @version      2.83
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -781,9 +781,16 @@
     // as new DOM elements (childList), not as in-place text node modifications.
     // Including characterData would fire on every React text reconciliation
     // during page load, repeatedly resetting the debounce and delaying detection.
+    // attributes + attributeFilter: some Atlassian SPAs reveal auth-error dialogs
+    // by toggling aria-hidden/hidden on existing DOM nodes rather than injecting
+    // new elements. Watching only these two attributes keeps the observation
+    // targeted (avoids firing on class/style/data-* churn from React reconciliation)
+    // while still catching attribute-toggled modal reveals.
     observer.observe(observeTarget, {
       childList: true,
       subtree: true,
+      attributes: true,
+      attributeFilter: ['aria-hidden', 'hidden'],
     });
 
     redirectOnce();
