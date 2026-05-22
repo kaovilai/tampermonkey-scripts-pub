@@ -270,13 +270,6 @@
     'identity provider error',
     'you have been inactive',
     'inactive for too long',
-    'additional verification required',
-    'confirm your identity',
-    'your access has been revoked',
-    'access has been revoked',
-    'account has been locked',
-    'account is locked',
-    'account locked',
     'your request could not be completed because it failed security validation',
     'xsrf check failed',
     'xsrf security token missing or incorrect',
@@ -329,7 +322,7 @@
   // responses are already caught by the Navigation Timing fast path, and
   // "403 Forbidden" / "401 Unauthorized" text in error page bodies is caught
   // by AUTH_RE, so removing the bare numbers does not weaken detection.
-  const BROKEN_TITLE_RE = /\b(forbidden|unauthorized|unauthorised|unauthenticated|not authenticated|not authorized|not authorised|access denied|sign in|log in|not logged in|session expired|authentication required|authentication failed|session timed out|signed out|logged out|not signed in|token expired|invalid session|session invalidated|session no longer|no longer authenticated|credential expired|requires authentication|re-?authenticate|saml authentication failed|sso authentication failed|oidc authentication failed|openid connect authentication failed|single sign-on required|identity provider error|xsrf check failed|xsrf security token missing or incorrect|csrf check failed|csrf token invalid|account locked|access revoked)\b/i;
+  const BROKEN_TITLE_RE = /\b(forbidden|unauthorized|unauthorised|unauthenticated|not authenticated|not authorized|not authorised|access denied|sign in|log in|not logged in|session expired|authentication required|authentication failed|session timed out|signed out|logged out|not signed in|token expired|invalid session|session invalidated|session no longer|no longer authenticated|credential expired|requires authentication|re-?authenticate|saml authentication failed|sso authentication failed|oidc authentication failed|openid connect authentication failed|single sign-on required|identity provider error|xsrf check failed|xsrf security token missing or incorrect|csrf check failed|csrf token invalid)\b/i;
 
   // Limit scan to first 5 000 chars — error banners appear near the top and
   // scanning the full DOM text of large Atlassian pages is unnecessarily slow.
