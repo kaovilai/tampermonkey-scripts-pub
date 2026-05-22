@@ -1,12 +1,13 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.91
+// @version      2.92
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
 // @match        https://*.atlassian.com/*
 // @match        https://bitbucket.org/*
+// @match        https://trello.com/*
 // @exclude      https://id.atlassian.com/*
 // @exclude      https://community.atlassian.com/*
 // @exclude      https://developer.atlassian.com/*
@@ -48,6 +49,24 @@
 // @exclude      https://bitbucket.org/tour/*
 // @exclude      https://bitbucket.org/solutions
 // @exclude      https://bitbucket.org/solutions/*
+// @exclude      https://trello.com/about
+// @exclude      https://trello.com/about/*
+// @exclude      https://trello.com/pricing
+// @exclude      https://trello.com/pricing/*
+// @exclude      https://trello.com/enterprise
+// @exclude      https://trello.com/enterprise/*
+// @exclude      https://trello.com/teams
+// @exclude      https://trello.com/teams/*
+// @exclude      https://trello.com/legal
+// @exclude      https://trello.com/legal/*
+// @exclude      https://trello.com/security
+// @exclude      https://trello.com/security/*
+// @exclude      https://trello.com/contact
+// @exclude      https://trello.com/contact/*
+// @exclude      https://trello.com/platforms
+// @exclude      https://trello.com/platforms/*
+// @exclude      https://trello.com/tour
+// @exclude      https://trello.com/tour/*
 // @run-at       document-start
 // @noframes
 // @grant        none
@@ -81,6 +100,7 @@
     try {
       const parsed = new URL(url);
       if (parsed.hostname === 'bitbucket.org') return 'bitbucket';
+      if (parsed.hostname === 'trello.com') return 'trello';
       if (parsed.hostname === 'admin.atlassian.com') return 'admin';
       if (parsed.hostname === 'team.atlassian.com') return 'atlas';
       if (CONFLUENCE_PATH_RE.test(parsed.pathname)) return 'confluence';
@@ -115,6 +135,8 @@
     'wac-cdn.atlassian.com',
     // Bitbucket REST API — pure API subdomain; users never browse it directly.
     'api.bitbucket.org',
+    // Trello REST API subdomain; product pages are on trello.com, not here.
+    'api.trello.com',
   ]);
 
   // Bitbucket URL path prefixes that are non-product pages (account settings,
@@ -123,12 +145,17 @@
   // allocations from Array.some() + slice(0,-1) on every Bitbucket URL check.
   const EXCLUDED_BITBUCKET_PATHS_RE = /^\/(?:account|site|blog|pricing|features|product|enterprise|signup|try|tour|solutions)(?:\/|$)/;
 
-  // Returns true for *.atlassian.net, *.atlassian.com, and bitbucket.org (product tenant domains).
+  // Trello URL path prefixes for non-product (marketing, legal, info) pages
+  // that should never trigger a login redirect.
+  const EXCLUDED_TRELLO_PATHS_RE = /^\/(?:about|pricing|enterprise|teams|legal|security|contact|platforms|tour)(?:\/|$)/;
+
+  // Returns true for *.atlassian.net, *.atlassian.com, bitbucket.org, and trello.com (product tenant domains).
   // Centralises the repeated suffix check used by isSafeAtlassianUrl and
   // isAtlassianApiUrl so that adding a new Atlassian TLD only requires one edit.
   function isAtlassianProductHost(hostname) {
     return hostname.endsWith('.atlassian.net') || hostname.endsWith('.atlassian.com')
-      || hostname === 'bitbucket.org' || hostname === 'api.bitbucket.org';
+      || hostname === 'bitbucket.org' || hostname === 'api.bitbucket.org'
+      || hostname === 'trello.com' || hostname === 'api.trello.com';
   }
 
   function isSafeAtlassianUrl(url) {
@@ -140,6 +167,9 @@
       // Exclude Bitbucket non-product path prefixes (mirrors @exclude entries).
       if (hostname === 'bitbucket.org'
         && EXCLUDED_BITBUCKET_PATHS_RE.test(pathname)) return false;
+      // Exclude Trello non-product path prefixes (mirrors @exclude entries).
+      if (hostname === 'trello.com'
+        && EXCLUDED_TRELLO_PATHS_RE.test(pathname)) return false;
       return true;
     } catch {
       return false;
@@ -167,6 +197,14 @@
         // Bitbucket public REST API (cross-origin; SPA calls this directly)
         return pathname.startsWith('/2.0/')
           || pathname.startsWith('/internal/');
+      }
+      if (hostname === 'trello.com') {
+        // Trello REST API v1 paths (same-origin proxy used by the Trello SPA)
+        return pathname.startsWith('/1/');
+      }
+      if (hostname === 'api.trello.com') {
+        // Trello public REST API (cross-origin; SPA may call this directly)
+        return pathname.startsWith('/1/');
       }
       // Exclude non-product subdomains (mirrors EXCLUDED_HOSTNAMES) so that a
       // 401/403 from e.g. id.atlassian.com or api.atlassian.com doesn't trigger
@@ -196,6 +234,9 @@
     '#admin-portal',                                     // Admin: portal root
     '[data-qa="account-nav-button"]',                   // Bitbucket: account nav
     '[data-testid="workspace-switcher"]',               // Bitbucket: workspace switcher
+    '[data-testid="header-member-menu-button"]',        // Trello: user avatar/profile button
+    '[data-testid="header-boards-menu-button"]',        // Trello: boards menu (logged-in header)
+    '.header-user',                                      // Trello: legacy logged-in header element
   ].join(', ');
 
   function isLoggedIn() {
@@ -225,6 +266,10 @@
     'you need to log in to bitbucket',
     'sign in to bitbucket',
     'you need to sign in to bitbucket',
+    'log in to trello',
+    'you need to log in to trello',
+    'sign in to trello',
+    'you need to sign in to trello',
     'you need to sign in',
     'you need to log in',
     'must sign in',
