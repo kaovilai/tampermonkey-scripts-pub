@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      3.1
+// @version      3.2
 // @author       kaovilai
 // @description  Detects auth failures on Atlassian Cloud, Bitbucket, and Trello (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -1068,6 +1068,15 @@
         const requestUrl = typeof args[0] === 'string' ? args[0]
           : args[0] instanceof URL ? args[0].href
           : (args[0]?.url ?? '');
+        // Fast path: skip post-response interception for requests that are clearly
+        // not Atlassian API endpoints (e.g. image/font/script loads, third-party
+        // requests). isAtlassianApiUrl() is cheap; avoiding the await-then-check
+        // path for non-API requests reduces per-call overhead on fetch-heavy SPAs.
+        // When requestUrl is empty (unusual; e.g. non-string/URL/Request arg) we
+        // fall through and use response.url in the condition below.
+        if (requestUrl && !isAtlassianApiUrl(requestUrl)) {
+          return _originalFetch.apply(this, args);
+        }
         const response = await _originalFetch.apply(this, args);
         try {
           if ((AUTH_STATUS_CODES.has(response.status)
