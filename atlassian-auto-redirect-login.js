@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.79
+// @version      2.80
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -287,6 +287,15 @@
   // the page loads, and getEntriesByType('navigation') allocates a new array on
   // every call. null means "not yet read"; 0 means "unavailable or not auth error".
   let _cachedNavHttpStatus = null;
+
+  // Cache the last document.title BROKEN_TITLE_RE result so that repeated
+  // pageLooksBroken() calls (mutation observer, poll interval, API retry burst)
+  // skip normalizeText() + regex when the title hasn't changed.
+  // Reset to null on genuine SPA navigations (startRetryLoop(true)) alongside
+  // _cachedNavHttpStatus so the new page's title is evaluated fresh.
+  let _lastCheckedTitle = null;
+  let _lastTitleBroken = false;
+
   function getNavigationHttpStatus() {
     if (_cachedNavHttpStatus !== null) return _cachedNavHttpStatus;
     try {
@@ -419,7 +428,12 @@
     // even when the SPA renders a generic (non-auth-keyword) error UI.
     if (_apiAuthDetected) return 'API 401/403 intercepted';
 
-    if (BROKEN_TITLE_RE.test(normalizeText(document.title))) return `broken title: "${document.title}"`;
+    const currentTitle = document.title;
+    if (currentTitle !== _lastCheckedTitle) {
+      _lastCheckedTitle = currentTitle;
+      _lastTitleBroken = BROKEN_TITLE_RE.test(normalizeText(currentTitle));
+    }
+    if (_lastTitleBroken) return `broken title: "${currentTitle}"`;
 
     // Skip DOM selector and TreeWalker scans before the document is interactive.
     // The SPA auth-error UI hasn't rendered yet during loading, so querySelectorAll
@@ -749,7 +763,7 @@
     // and spurious redirect attempts (blocked by the rate limiter but still noisy).
     // 0 is used rather than null because null means "not yet checked" and would
     // cause getNavigationHttpStatus() to re-read the same stale entry.
-    if (resetFailures) _cachedNavHttpStatus = 0;
+    if (resetFailures) { _cachedNavHttpStatus = 0; _lastCheckedTitle = null; }
 
     const observeTarget = document.body ?? document.documentElement;
     observer = new MutationObserver(() => {
