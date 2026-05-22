@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      3.11
+// @version      3.12
 // @author       kaovilai
 // @description  Detects auth failures on Atlassian Cloud, Bitbucket, and Trello (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -549,6 +549,16 @@
         // elements as fully non-interactive and removed from the accessibility
         // tree; Atlassian SPAs may use it to suppress off-screen modal sheets.
         if (overlay.getAttribute('aria-hidden') === 'true' || overlay.hasAttribute('hidden') || overlay.hasAttribute('inert')) continue;
+        // Also skip overlays hidden via CSS (display:none or visibility:hidden).
+        // Some Atlassian SPAs hide dismissed dialogs by toggling CSS classes
+        // rather than setting aria-hidden/hidden/inert, leaving them in the DOM
+        // with auth-error text that would otherwise cause a false-positive redirect.
+        // getComputedStyle cost is bounded by MAX_OVERLAY_SCAN and is only reached
+        // after readyState is no longer 'loading' (guard above), so reflow impact is small.
+        try {
+          const cs = window.getComputedStyle(overlay);
+          if (cs.display === 'none' || cs.visibility === 'hidden') continue;
+        } catch (_) { /* getComputedStyle unavailable for this element — proceed with scan */ }
         if (AUTH_RE.test(normalizeText(collectText(overlay, MAX_TEXT_SCAN)))) return `auth keyword in overlay[${i}]`;
       } catch (_) { /* skip malformed overlay element */ }
     }
