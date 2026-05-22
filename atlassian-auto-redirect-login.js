@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      3.0
+// @version      3.1
 // @author       kaovilai
 // @description  Detects auth failures on Atlassian Cloud, Bitbucket, and Trello (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -617,18 +617,26 @@
   // observed. Uses clearTimeout + a shared handle so rapid successive API
   // errors (common on auth-gated pages that fire multiple concurrent requests)
   // collapse into a single burst rather than piling up.
+  // A generation counter (_apiRetryGen) ensures that when scheduleRetryAfterApiError()
+  // is called while a prior burst's callback is already executing (clearTimeout has
+  // no effect on already-running code), the old next() chain detects it is stale
+  // and exits instead of scheduling additional timers alongside the new burst.
   // Skips scheduling when offline or when a native redirect is already in
   // progress — mirrors the guards in redirectOnce() to avoid spurious
   // _apiAuthDetected activations that would outlast the current page.
   let apiRetryHandle = null;
+  let _apiRetryGen = 0;
   function scheduleRetryAfterApiError() {
     if (redirected) return;
     if (navigator.onLine === false) return;
     if (isAlreadyRedirecting()) return;
     _apiAuthDetected = true;
     clearTimeout(apiRetryHandle);
+    const gen = ++_apiRetryGen;
     let i = 0;
     function next() {
+      // Abandon stale burst: a newer scheduleRetryAfterApiError() call has started.
+      if (gen !== _apiRetryGen) { return; }
       // Stop immediately after a successful redirect — no point scheduling
       // further timers that would each hit the `if (redirected) return` guard
       // inside redirectOnce() and then call next() again needlessly.
