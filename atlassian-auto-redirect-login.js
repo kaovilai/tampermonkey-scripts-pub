@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      3.20
+// @version      3.21
 // @author       kaovilai
 // @description  Detects auth failures on Atlassian Cloud, Bitbucket, Trello, and Jira Align (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -880,6 +880,13 @@
     onlineDebounce = null;
     clearTimeout(apiRetryHandle);
     apiRetryHandle = null;
+    // Invalidate any in-flight scheduleRetryAfterApiError() burst. clearTimeout()
+    // only prevents a *pending* timer from firing; if a next() callback is already
+    // executing when cleanup() is called, clearTimeout() has no effect on it and
+    // that callback will call next() again — scheduling a new timer that runs after
+    // cleanup() returns. Incrementing _apiRetryGen ensures the gen !== _apiRetryGen
+    // guard inside next() detects the staleness and exits without rescheduling.
+    _apiRetryGen++;
   }
 
   function redirectOnce() {
