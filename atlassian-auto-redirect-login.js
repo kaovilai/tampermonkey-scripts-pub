@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      3.3
+// @version      3.4
 // @author       kaovilai
 // @description  Detects auth failures on Atlassian Cloud, Bitbucket, and Trello (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -29,6 +29,8 @@
 // @exclude      https://wac-cdn.atlassian.com/*
 // @exclude      https://bitbucket.org/login
 // @exclude      https://bitbucket.org/login/*
+// @exclude      https://bitbucket.org/signin
+// @exclude      https://bitbucket.org/signin/*
 // @exclude      https://bitbucket.org/account
 // @exclude      https://bitbucket.org/account/*
 // @exclude      https://bitbucket.org/site
@@ -53,6 +55,8 @@
 // @exclude      https://bitbucket.org/solutions/*
 // @exclude      https://trello.com/login
 // @exclude      https://trello.com/login/*
+// @exclude      https://trello.com/signin
+// @exclude      https://trello.com/signin/*
 // @exclude      https://trello.com/about
 // @exclude      https://trello.com/about/*
 // @exclude      https://trello.com/pricing
