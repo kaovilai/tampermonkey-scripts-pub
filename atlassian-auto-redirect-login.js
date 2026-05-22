@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      3.15
+// @version      3.16
 // @author       kaovilai
 // @description  Detects auth failures on Atlassian Cloud, Bitbucket, Trello, and Jira Align (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -412,7 +412,66 @@
   // responses are already caught by the Navigation Timing fast path, and
   // "403 Forbidden" / "401 Unauthorized" text in error page bodies is caught
   // by AUTH_RE, so removing the bare numbers does not weaken detection.
-  const BROKEN_TITLE_RE = /\b(forbidden|unauthorized|unauthorised|unauthenticated|not authenticated|not authorized|not authorised|access denied|sign in|log in|not logged in|login required|sign-in required|requires login|requires sign-in|session expired|session has expired|authentication required|authentication failed|session timed out|session has timed out|signed out|logged out|not signed in|token expired|token has expired|invalid session|session invalidated|session has been invalidated|session was invalidated|session ended|session has ended|session no longer|no longer authenticated|credential expired|requires authentication|re-?authenticate|saml authentication failed|sso authentication failed|oidc authentication failed|openid connect authentication failed|single sign-on required|idp redirect required|identity provider error|xsrf check failed|xsrf security token missing or incorrect|csrf check failed|csrf token invalid|you have been inactive|inactive for too long)\b/i;
+  // Terms that are plain strings — passed through escapeRegExp before joining.
+  // Each term is on its own line so diffs adding/removing a term are readable.
+  const BROKEN_TITLE_TERMS = [
+    'forbidden',
+    'unauthorized',
+    'unauthorised',
+    'unauthenticated',
+    'not authenticated',
+    'not authorized',
+    'not authorised',
+    'access denied',
+    'sign in',
+    'log in',
+    'not logged in',
+    'login required',
+    'sign-in required',
+    'requires login',
+    'requires sign-in',
+    'session expired',
+    'session has expired',
+    'authentication required',
+    'authentication failed',
+    'session timed out',
+    'session has timed out',
+    'signed out',
+    'logged out',
+    'not signed in',
+    'token expired',
+    'token has expired',
+    'invalid session',
+    'session invalidated',
+    'session has been invalidated',
+    'session was invalidated',
+    'session ended',
+    'session has ended',
+    'session no longer',
+    'no longer authenticated',
+    'credential expired',
+    'requires authentication',
+    'saml authentication failed',
+    'sso authentication failed',
+    'oidc authentication failed',
+    'openid connect authentication failed',
+    'single sign-on required',
+    'idp redirect required',
+    'identity provider error',
+    'xsrf check failed',
+    'xsrf security token missing or incorrect',
+    'csrf check failed',
+    'csrf token invalid',
+    'you have been inactive',
+    'inactive for too long',
+  ];
+  // 're-?authenticate' is a regex term (the '?' quantifier must not be escaped)
+  // so it is appended raw after the escaped plain terms — consistent with how
+  // AUTH_RE handles its array of plain strings via .map(escapeRegExp).join('|').
+  const BROKEN_TITLE_RE = new RegExp(
+    '\\b(' + [...BROKEN_TITLE_TERMS.map(escapeRegExp), 're-?authenticate'].join('|') + ')\\b',
+    'i'
+  );
 
   // Limit scan to first 5 000 chars — error banners appear near the top and
   // scanning the full DOM text of large Atlassian pages is unnecessarily slow.
