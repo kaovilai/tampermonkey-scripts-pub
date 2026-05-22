@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.84
+// @version      2.85
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -281,6 +281,8 @@
     'session invalidated',
     'your session was invalidated',
     'your session has been invalidated',
+    'session has ended',
+    'your session has ended',
   ].map(escapeRegExp).join('|'), 'i');
 
   // Use Navigation Timing API to detect HTTP 401/403 responses directly.
@@ -322,7 +324,7 @@
   // responses are already caught by the Navigation Timing fast path, and
   // "403 Forbidden" / "401 Unauthorized" text in error page bodies is caught
   // by AUTH_RE, so removing the bare numbers does not weaken detection.
-  const BROKEN_TITLE_RE = /\b(forbidden|unauthorized|unauthorised|unauthenticated|not authenticated|not authorized|not authorised|access denied|sign in|log in|not logged in|session expired|authentication required|authentication failed|session timed out|signed out|logged out|not signed in|token expired|invalid session|session invalidated|session no longer|no longer authenticated|credential expired|requires authentication|re-?authenticate|saml authentication failed|sso authentication failed|oidc authentication failed|openid connect authentication failed|single sign-on required|identity provider error|xsrf check failed|xsrf security token missing or incorrect|csrf check failed|csrf token invalid)\b/i;
+  const BROKEN_TITLE_RE = /\b(forbidden|unauthorized|unauthorised|unauthenticated|not authenticated|not authorized|not authorised|access denied|sign in|log in|not logged in|session expired|authentication required|authentication failed|session timed out|signed out|logged out|not signed in|token expired|invalid session|session invalidated|session ended|session no longer|no longer authenticated|credential expired|requires authentication|re-?authenticate|saml authentication failed|sso authentication failed|oidc authentication failed|openid connect authentication failed|single sign-on required|identity provider error|xsrf check failed|xsrf security token missing or incorrect|csrf check failed|csrf token invalid)\b/i;
 
   // Limit scan to first 5 000 chars — error banners appear near the top and
   // scanning the full DOM text of large Atlassian pages is unnecessarily slow.
