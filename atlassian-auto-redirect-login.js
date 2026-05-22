@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.74
+// @version      2.75
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -89,6 +89,8 @@
     'events.atlassian.com',
     'partners.atlassian.com',
     'wac-cdn.atlassian.com',
+    // Bitbucket REST API — pure API subdomain; users never browse it directly.
+    'api.bitbucket.org',
   ]);
 
   // Bitbucket URL path prefixes that are non-product pages (account settings,
@@ -101,7 +103,8 @@
   // Centralises the repeated suffix check used by isSafeAtlassianUrl and
   // isAtlassianApiUrl so that adding a new Atlassian TLD only requires one edit.
   function isAtlassianProductHost(hostname) {
-    return hostname.endsWith('.atlassian.net') || hostname.endsWith('.atlassian.com') || hostname === 'bitbucket.org';
+    return hostname.endsWith('.atlassian.net') || hostname.endsWith('.atlassian.com')
+      || hostname === 'bitbucket.org' || hostname === 'api.bitbucket.org';
   }
 
   function isSafeAtlassianUrl(url) {
@@ -130,10 +133,15 @@
       // a product-page login redirect.
       if (EXCLUDED_HOSTNAMES.has(hostname)) return false;
       if (hostname === 'bitbucket.org') {
-        // Bitbucket REST API v2 paths
+        // Bitbucket REST API v2 paths (same-origin proxy)
         return pathname.startsWith('/!api/2.0/')
           || pathname.startsWith('/api/2.0/')
           || pathname.startsWith('/api/internal/');
+      }
+      if (hostname === 'api.bitbucket.org') {
+        // Bitbucket public REST API (cross-origin; SPA calls this directly)
+        return pathname.startsWith('/2.0/')
+          || pathname.startsWith('/internal/');
       }
       return pathname.startsWith('/rest/')
         || pathname.startsWith('/wiki/rest/')
