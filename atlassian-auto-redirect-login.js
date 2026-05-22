@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      3.18
+// @version      3.19
 // @author       kaovilai
 // @description  Detects auth failures on Atlassian Cloud, Bitbucket, Trello, and Jira Align (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -370,6 +370,7 @@
     'session invalidated',
     'your session was invalidated',
     'your session has been invalidated',
+    'session ended',
     'session has ended',
     'your session has ended',
   ].map(escapeRegExp).join('|'), 'i');
@@ -448,6 +449,7 @@
     'session was invalidated',
     'session ended',
     'session has ended',
+    'your session has ended',
     'session no longer',
     'no longer authenticated',
     'credential expired',
