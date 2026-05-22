@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.95
+// @version      2.96
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -565,6 +565,11 @@
     // Each candidate is [continueValue, logLabel] where continueValue=null is a
     // sentinel meaning "omit the continue param entirely".
     const { origin, pathname, hash } = window.location;
+    // Deduplicate consecutive identical URL candidates: when the current URL has no
+    // query string, currentUrl === origin+pathname+hash (candidates 1 and 2 are the
+    // same string); when there is also no hash, all three non-null candidates collapse
+    // to origin+pathname. Filtering duplicates avoids a redundant url.toString()
+    // call and searchParams.set() in the fallback loop for these common cases.
     const continueUrlCandidates = [
       [currentUrl, null],
       // Preserve the hash fragment so the user returns to the same anchor
@@ -574,7 +579,7 @@
       // try origin+pathname without hash before giving up entirely.
       [origin + pathname, 'path, hash omitted'],
       [null, null], // sentinel: omit continue param entirely
-    ];
+    ].filter(([c], i, arr) => i === 0 || c === null || c !== arr[i - 1][0]);
     for (const [candidate, label] of continueUrlCandidates) {
       if (candidate === null) {
         url.searchParams.delete('continue');
