@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.83
+// @version      2.84
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -265,9 +265,18 @@
     'log in with sso',
     'saml authentication failed',
     'sso authentication failed',
+    'oidc authentication failed',
+    'openid connect authentication failed',
     'identity provider error',
     'you have been inactive',
     'inactive for too long',
+    'additional verification required',
+    'confirm your identity',
+    'your access has been revoked',
+    'access has been revoked',
+    'account has been locked',
+    'account is locked',
+    'account locked',
     'your request could not be completed because it failed security validation',
     'xsrf check failed',
     'xsrf security token missing or incorrect',
@@ -320,7 +329,7 @@
   // responses are already caught by the Navigation Timing fast path, and
   // "403 Forbidden" / "401 Unauthorized" text in error page bodies is caught
   // by AUTH_RE, so removing the bare numbers does not weaken detection.
-  const BROKEN_TITLE_RE = /\b(forbidden|unauthorized|unauthorised|unauthenticated|not authenticated|not authorized|not authorised|access denied|sign in|log in|not logged in|session expired|authentication required|authentication failed|session timed out|signed out|logged out|not signed in|token expired|invalid session|session invalidated|session no longer|no longer authenticated|credential expired|requires authentication|re-?authenticate|saml authentication failed|sso authentication failed|single sign-on required|identity provider error|xsrf check failed|xsrf security token missing or incorrect|csrf check failed|csrf token invalid)\b/i;
+  const BROKEN_TITLE_RE = /\b(forbidden|unauthorized|unauthorised|unauthenticated|not authenticated|not authorized|not authorised|access denied|sign in|log in|not logged in|session expired|authentication required|authentication failed|session timed out|signed out|logged out|not signed in|token expired|invalid session|session invalidated|session no longer|no longer authenticated|credential expired|requires authentication|re-?authenticate|saml authentication failed|sso authentication failed|oidc authentication failed|openid connect authentication failed|single sign-on required|identity provider error|xsrf check failed|xsrf security token missing or incorrect|csrf check failed|csrf token invalid|account locked|access revoked)\b/i;
 
   // Limit scan to first 5 000 chars — error banners appear near the top and
   // scanning the full DOM text of large Atlassian pages is unnecessarily slow.
@@ -397,7 +406,7 @@
   // (format: "N; url=https://...") when it points to a login-related destination.
   // Extracted as a module-level constant so the RegExp is compiled once and
   // reused across all calls to isAlreadyRedirecting() / canAttemptRedirect().
-  const ALREADY_REDIRECTING_RE = /url=[^,]*(?:login|signin|sso|saml|idp|oauth)/i;
+  const ALREADY_REDIRECTING_RE = /url=[^,]*(?:login|signin|sso|saml|idp|oauth|oidc|openid)/i;
 
   // If the page already contains a <meta http-equiv="refresh"> pointing to a
   // login URL, Atlassian's native redirect is in progress — don't interfere.
