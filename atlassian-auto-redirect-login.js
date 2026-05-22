@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.75
+// @version      2.76
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -880,8 +880,8 @@
   window.addEventListener('pageshow', (e) => {
     try {
       if (e.persisted && canAttemptRedirect()) startRetryLoop(false, false);
-    } catch (e) {
-      console.warn(`${LOG_PREFIX} pageshow error:`, e);
+    } catch (err) {
+      console.warn(`${LOG_PREFIX} pageshow error:`, err);
     }
   });
 
@@ -915,7 +915,7 @@
       patched[PATCH_KEY] = true;
       history[method] = patched;
     }
-  } catch (e) {
+  } catch {
     // history patching unavailable; popstate/hashchange listeners provide fallback coverage
   }
 
