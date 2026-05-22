@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.76
+// @version      2.77
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -128,21 +128,26 @@
       const { protocol, hostname, pathname } = new URL(url, window.location.href);
       if (protocol !== 'https:') return false;
       if (!isAtlassianProductHost(hostname)) return false;
-      // Exclude non-product subdomains (mirrors EXCLUDED_HOSTNAMES) so that a
-      // 401/403 from e.g. id.atlassian.com or api.atlassian.com doesn't trigger
-      // a product-page login redirect.
-      if (EXCLUDED_HOSTNAMES.has(hostname)) return false;
       if (hostname === 'bitbucket.org') {
         // Bitbucket REST API v2 paths (same-origin proxy)
         return pathname.startsWith('/!api/2.0/')
           || pathname.startsWith('/api/2.0/')
           || pathname.startsWith('/api/internal/');
       }
+      // Check api.bitbucket.org before EXCLUDED_HOSTNAMES: that Set includes
+      // api.bitbucket.org to prevent page-level redirects when window.location
+      // is that host (which never happens in practice), but the cross-origin
+      // fetch/XHR interceptor must still recognise it as a product API host
+      // so that 401/403 responses trigger scheduleRetryAfterApiError().
       if (hostname === 'api.bitbucket.org') {
         // Bitbucket public REST API (cross-origin; SPA calls this directly)
         return pathname.startsWith('/2.0/')
           || pathname.startsWith('/internal/');
       }
+      // Exclude non-product subdomains (mirrors EXCLUDED_HOSTNAMES) so that a
+      // 401/403 from e.g. id.atlassian.com or api.atlassian.com doesn't trigger
+      // a product-page login redirect.
+      if (EXCLUDED_HOSTNAMES.has(hostname)) return false;
       return pathname.startsWith('/rest/')
         || pathname.startsWith('/wiki/rest/')
         || pathname.startsWith('/wiki/api/')   // Confluence Cloud v2 REST API
