@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      2.94
+// @version      2.95
 // @author       kaovilai
 // @description  Detects Atlassian Cloud auth failures (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -562,25 +562,29 @@
     // Long Jira filter / board URLs can push the encoded continue value well past the
     // 2048-char limit; fall back through progressively shorter forms before omitting
     // the continue param entirely, so the user is at least returned to the right page.
-    url.searchParams.set('continue', currentUrl);
-    if (url.toString().length > MAX_LOGIN_URL_LENGTH) {
+    // Each candidate is [continueValue, logLabel] where continueValue=null is a
+    // sentinel meaning "omit the continue param entirely".
+    const { origin, pathname, hash } = window.location;
+    const continueUrlCandidates = [
+      [currentUrl, null],
       // Preserve the hash fragment so the user returns to the same anchor
       // (e.g. a Confluence heading) after logging back in.
-      const urlWithHash = window.location.origin + window.location.pathname + window.location.hash;
-      url.searchParams.set('continue', urlWithHash);
-      if (url.toString().length > MAX_LOGIN_URL_LENGTH) {
-        // Hash alone may be very long (e.g. Confluence #heading=... anchors);
-        // try origin+pathname without hash before giving up entirely.
-        const urlNoHash = window.location.origin + window.location.pathname;
-        url.searchParams.set('continue', urlNoHash);
-        if (url.toString().length > MAX_LOGIN_URL_LENGTH) {
-          url.searchParams.delete('continue');
-          console.warn(`${LOG_PREFIX} continue URL too long (${currentUrl.length} chars) — omitting continue param`);
-        } else {
-          console.info(`${LOG_PREFIX} continue URL truncated to path, hash omitted (${currentUrl.length} chars original)`);
-        }
-      } else {
-        console.info(`${LOG_PREFIX} continue URL truncated to path+hash (${currentUrl.length} chars original)`);
+      [origin + pathname + hash, 'path+hash'],
+      // Hash alone may be very long (e.g. Confluence #heading=... anchors);
+      // try origin+pathname without hash before giving up entirely.
+      [origin + pathname, 'path, hash omitted'],
+      [null, null], // sentinel: omit continue param entirely
+    ];
+    for (const [candidate, label] of continueUrlCandidates) {
+      if (candidate === null) {
+        url.searchParams.delete('continue');
+        console.warn(`${LOG_PREFIX} continue URL too long (${currentUrl.length} chars) — omitting continue param`);
+        break;
+      }
+      url.searchParams.set('continue', candidate);
+      if (url.toString().length <= MAX_LOGIN_URL_LENGTH) {
+        if (label) console.info(`${LOG_PREFIX} continue URL truncated to ${label} (${currentUrl.length} chars original)`);
+        break;
       }
     }
 
