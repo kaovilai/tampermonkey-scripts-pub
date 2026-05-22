@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      3.18
+// @version      3.19
 // @author       kaovilai
 // @description  Detects auth failures on Atlassian Cloud, Bitbucket, Trello, and Jira Align (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -348,6 +348,13 @@
     'authentication failed',
     'your credentials have expired',
     'credential expired',
+    'your password has expired',
+    'password has expired',
+    'password expired',
+    'you must change your password',
+    'two-step verification required',
+    'additional verification required',
+    'step-up authentication required',
     'your session has timed out',
     'please sign in again',
     'sign in with sso',
@@ -451,6 +458,10 @@
     'session no longer',
     'no longer authenticated',
     'credential expired',
+    'password expired',
+    'two-step verification',
+    'additional verification required',
+    'step-up authentication',
     'requires authentication',
     'saml authentication failed',
     'sso authentication failed',
