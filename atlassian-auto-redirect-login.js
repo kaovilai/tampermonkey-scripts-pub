@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      3.16
+// @version      3.17
 // @author       kaovilai
 // @description  Detects auth failures on Atlassian Cloud, Bitbucket, Trello, and Jira Align (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -1187,13 +1187,14 @@
         const requestUrl = typeof args[0] === 'string' ? args[0]
           : args[0] instanceof URL ? args[0].href
           : (args[0]?.url ?? '');
-        // Fast path: skip post-response interception for requests that are clearly
-        // not Atlassian API endpoints (e.g. image/font/script loads, third-party
-        // requests). isAtlassianApiUrl() is cheap; avoiding the await-then-check
-        // path for non-API requests reduces per-call overhead on fetch-heavy SPAs.
+        // Fast path: skip post-response interception when a redirect has already
+        // fired (avoids the await + response scan entirely) or when the request
+        // is clearly not an Atlassian API endpoint (e.g. image/font/script loads,
+        // third-party requests). isAtlassianApiUrl() is cheap; avoiding the
+        // await-then-check path reduces per-call overhead on fetch-heavy SPAs.
         // When requestUrl is empty (unusual; e.g. non-string/URL/Request arg) we
         // fall through and use response.url in the condition below.
-        if (requestUrl && !isAtlassianApiUrl(requestUrl)) {
+        if (redirected || (requestUrl && !isAtlassianApiUrl(requestUrl))) {
           return _originalFetch.apply(this, args);
         }
         const response = await _originalFetch.apply(this, args);
@@ -1205,9 +1206,9 @@
               // reveals the redirect destination; AUTH_STATUS_CODES alone would
               // not match the resulting 200 response.
               || ATLASSIAN_AUTH_ORIGIN_RE.test(response.url))
+            && !redirected
             && isAtlassianApiUrl(requestUrl || response.url)
-            && !isLoggedIn()
-            && !redirected) {
+            && !isLoggedIn()) {
             scheduleRetryAfterApiError();
           }
         } catch (e) {
@@ -1251,14 +1252,14 @@
           this.addEventListener('readystatechange', function () {
             try {
               if (this.readyState === XMLHttpRequest.DONE
+                && !redirected
                 && (AUTH_STATUS_CODES.has(this.status)
                     // Also fire when the server redirected the XHR to an
                     // Atlassian identity-platform URL — XHR follows 302 redirects
                     // automatically and exposes the final URL via responseURL.
                     || ATLASSIAN_AUTH_ORIGIN_RE.test(this.responseURL))
                 && isAtlassianApiUrl(this[XHR_URL_KEY] || this.responseURL)
-                && !isLoggedIn()
-                && !redirected) {
+                && !isLoggedIn()) {
                 scheduleRetryAfterApiError();
               }
             } catch (e) {
