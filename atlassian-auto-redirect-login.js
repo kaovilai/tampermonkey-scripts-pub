@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      3.19
+// @version      3.20
 // @author       kaovilai
 // @description  Detects auth failures on Atlassian Cloud, Bitbucket, Trello, and Jira Align (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -101,6 +101,12 @@
   const AUTH_STATUS_CODES = new Set([401, 403]);
   const LOG_PREFIX = '[atlassian-redirect]';
 
+  const BB_HOSTNAME = 'bitbucket.org';
+  const BB_API_HOSTNAME = 'api.bitbucket.org';
+  const TRELLO_HOSTNAME = 'trello.com';
+  const TRELLO_API_HOSTNAME = 'api.trello.com';
+  const JIRA_ALIGN_SUFFIX = '.jiraalign.com';
+
   function escapeRegExp(s) {
     return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
@@ -110,11 +116,11 @@
   function detectApplication(url) {
     try {
       const parsed = new URL(url);
-      if (parsed.hostname === 'bitbucket.org') return 'bitbucket';
-      if (parsed.hostname === 'trello.com') return 'trello';
+      if (parsed.hostname === BB_HOSTNAME) return 'bitbucket';
+      if (parsed.hostname === TRELLO_HOSTNAME) return 'trello';
       if (parsed.hostname === 'admin.atlassian.com') return 'admin';
       if (parsed.hostname === 'team.atlassian.com' || parsed.hostname === 'start.atlassian.com') return 'atlas';
-      if (parsed.hostname.endsWith('.jiraalign.com')) return 'jira-align';
+      if (parsed.hostname.endsWith(JIRA_ALIGN_SUFFIX)) return 'jira-align';
       if (CONFLUENCE_PATH_RE.test(parsed.pathname)) return 'confluence';
       if (JSM_PATH_RE.test(parsed.pathname)) return 'jira-servicedesk';
       return 'jira';
@@ -146,9 +152,9 @@
     'partners.atlassian.com',
     'wac-cdn.atlassian.com',
     // Bitbucket REST API — pure API subdomain; users never browse it directly.
-    'api.bitbucket.org',
+    BB_API_HOSTNAME,
     // Trello REST API subdomain; product pages are on trello.com, not here.
-    'api.trello.com',
+    TRELLO_API_HOSTNAME,
   ]);
 
   // Bitbucket URL path prefixes that are non-product pages (account settings,
@@ -166,9 +172,9 @@
   // isAtlassianApiUrl so that adding a new Atlassian TLD only requires one edit.
   function isAtlassianProductHost(hostname) {
     return hostname.endsWith('.atlassian.net') || hostname.endsWith('.atlassian.com')
-      || hostname === 'bitbucket.org' || hostname === 'api.bitbucket.org'
-      || hostname === 'trello.com' || hostname === 'api.trello.com'
-      || hostname.endsWith('.jiraalign.com');
+      || hostname === BB_HOSTNAME || hostname === BB_API_HOSTNAME
+      || hostname === TRELLO_HOSTNAME || hostname === TRELLO_API_HOSTNAME
+      || hostname.endsWith(JIRA_ALIGN_SUFFIX);
   }
 
   function isSafeAtlassianUrl(url) {
@@ -178,10 +184,10 @@
       if (EXCLUDED_HOSTNAMES.has(hostname)) return false;
       if (!isAtlassianProductHost(hostname)) return false;
       // Exclude Bitbucket non-product path prefixes (mirrors @exclude entries).
-      if (hostname === 'bitbucket.org'
+      if (hostname === BB_HOSTNAME
         && EXCLUDED_BITBUCKET_PATHS_RE.test(pathname)) return false;
       // Exclude Trello non-product path prefixes (mirrors @exclude entries).
-      if (hostname === 'trello.com'
+      if (hostname === TRELLO_HOSTNAME
         && EXCLUDED_TRELLO_PATHS_RE.test(pathname)) return false;
       return true;
     } catch {
@@ -195,7 +201,7 @@
       const { protocol, hostname, pathname } = new URL(url, window.location.href);
       if (protocol !== 'https:') return false;
       if (!isAtlassianProductHost(hostname)) return false;
-      if (hostname === 'bitbucket.org') {
+      if (hostname === BB_HOSTNAME) {
         // Bitbucket REST API v2 paths (same-origin proxy)
         return pathname.startsWith('/!api/2.0/')
           || pathname.startsWith('/api/2.0/')
@@ -206,20 +212,20 @@
       // is that host (which never happens in practice), but the cross-origin
       // fetch/XHR interceptor must still recognise it as a product API host
       // so that 401/403 responses trigger scheduleRetryAfterApiError().
-      if (hostname === 'api.bitbucket.org') {
+      if (hostname === BB_API_HOSTNAME) {
         // Bitbucket public REST API (cross-origin; SPA calls this directly)
         return pathname.startsWith('/2.0/')
           || pathname.startsWith('/internal/');
       }
-      if (hostname === 'trello.com') {
+      if (hostname === TRELLO_HOSTNAME) {
         // Trello REST API v1 paths (same-origin proxy used by the Trello SPA)
         return pathname.startsWith('/1/');
       }
-      if (hostname === 'api.trello.com') {
+      if (hostname === TRELLO_API_HOSTNAME) {
         // Trello public REST API (cross-origin; SPA may call this directly)
         return pathname.startsWith('/1/');
       }
-      if (hostname.endsWith('.jiraalign.com')) {
+      if (hostname.endsWith(JIRA_ALIGN_SUFFIX)) {
         // Jira Align REST API paths used by the SPA
         return pathname.startsWith('/rest/')
           || pathname.startsWith('/api/');
