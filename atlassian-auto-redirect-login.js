@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      3.21
+// @version      3.22
 // @author       kaovilai
 // @description  Detects auth failures on Atlassian Cloud, Bitbucket, Trello, and Jira Align (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -339,6 +339,8 @@
     'reauthenticate',
     'reauthenticate to continue',
     're-authenticate',
+    'reauthentication required',
+    're-authentication required',
     'token expired',
     'token has expired',
     'invalid session',
@@ -473,6 +475,8 @@
     'csrf token invalid',
     'you have been inactive',
     'inactive for too long',
+    'reauthentication required',
+    're-authentication required',
   ];
   // 're-?authenticate' is a regex term (the '?' quantifier must not be escaped)
   // so it is appended raw after the escaped plain terms — consistent with how
