@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Atlassian error auto-redirect to login
 // @namespace    tiger-tools
-// @version      3.21
+// @version      3.22
 // @author       kaovilai
 // @description  Detects auth failures on Atlassian Cloud, Bitbucket, Trello, and Jira Align (DOM error pages, API 401/403, Navigation Timing) and redirects to id.atlassian.com/login with a dynamic continue URL
 // @match        https://*.atlassian.net/*
@@ -331,7 +331,6 @@
     'continue to log in',
     'your account has been signed out',
     'your account has been logged out',
-    'please log in again',
     'log back in',
     'your session is no longer valid',
     'this page requires you to log in',
@@ -354,8 +353,6 @@
     'authentication failed',
     'your credentials have expired',
     'credential expired',
-    'your session has timed out',
-    'please sign in again',
     'sign in with sso',
     'log in with sso',
     'saml authentication failed',
@@ -378,7 +375,6 @@
     'your session has been invalidated',
     'session ended',
     'session has ended',
-    'your session has ended',
   ].map(escapeRegExp).join('|'), 'i');
 
   // Use Navigation Timing API to detect HTTP 401/403 responses directly.
@@ -455,7 +451,6 @@
     'session was invalidated',
     'session ended',
     'session has ended',
-    'your session has ended',
     'session no longer',
     'no longer authenticated',
     'credential expired',
